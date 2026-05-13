@@ -249,3 +249,92 @@ print(f"Top-10 accuracy: {top10 / total:.2%}")
 python script1.py
 
 python all-in.py
+
+
+
+
+#### THE VGG2 - ONLY 1 TAR FILE ~20GB
+pip install huggingface_hub
+
+nano script2.py
+
+```
+import os
+import shutil
+import random
+import tarfile
+from collections import defaultdict
+from huggingface_hub import hf_hub_download
+
+# ── Download just one part (20GB) - enough for testing ───────────────────────
+print("Downloading VGGFace2-HQ part 1 (approx 20GB)...")
+tar_path = hf_hub_download(
+    repo_id="RichardErkhov/VGGFace2-HQ",
+    filename="vgg_face_parts/1.tar",
+    repo_type="dataset",
+    local_dir="./vggface2_download"
+)
+print(f"Downloaded to: {tar_path}")
+
+# ── Extract ───────────────────────────────────────────────────────────────────
+extract_path = "./vggface2_raw"
+os.makedirs(extract_path, exist_ok=True)
+print("Extracting tar file (this may take a few minutes)...")
+with tarfile.open(tar_path, "r") as tar:
+    tar.extractall(extract_path)
+print("Extraction done.")
+
+# ── Find the root folder with identity subfolders ────────────────────────────
+vgg_root = None
+for root, dirs, files in os.walk(extract_path):
+    subdirs = [d for d in dirs if not d.startswith('.')]
+    if len(subdirs) > 10:
+        vgg_root = root
+        break
+
+print(f"Found VGGFace2 root at: {vgg_root}")
+print(f"Sample identities: {os.listdir(vgg_root)[:5]}")
+
+# ── Filter identities with at least 2 images ─────────────────────────────────
+identity_images = defaultdict(list)
+for identity in os.listdir(vgg_root):
+    identity_path = os.path.join(vgg_root, identity)
+    if not os.path.isdir(identity_path):
+        continue
+    images = [f for f in os.listdir(identity_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    if len(images) >= 2:
+        identity_images[identity] = images
+
+print(f"Identities with at least 2 images: {len(identity_images)}")
+
+# ── Split into query and gallery ──────────────────────────────────────────────
+query_folder = "test_data/query"
+gallery_folder = "test_data/gallery"
+os.makedirs(query_folder, exist_ok=True)
+os.makedirs(gallery_folder, exist_ok=True)
+
+random.seed(1)
+
+for identity, images in identity_images.items():
+    images_shuffled = images.copy()
+    random.shuffle(images_shuffled)
+
+    # first image goes to query, the rest go to gallery
+    src = os.path.join(vgg_root, identity, images_shuffled[0])
+    shutil.copy(src, os.path.join(query_folder, f"{identity}__{images_shuffled[0]}"))
+
+    for img in images_shuffled[1:]:
+        src = os.path.join(vgg_root, identity, img)
+        shutil.copy(src, os.path.join(gallery_folder, f"{identity}__{img}"))
+
+print(f"Query images:   {len(os.listdir(query_folder))}")
+print(f"Gallery images: {len(os.listdir(gallery_folder))}")
+print("Done. Run your pipeline now with data_folder = 'test_data'")
+```
+
+#### RUN
+
+python script2.py
+
+
+
