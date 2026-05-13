@@ -336,5 +336,5 @@ print("Done. Run your pipeline now with data_folder = 'test_data'")
 
 python script2.py
 
-
+python all-in.py
 
