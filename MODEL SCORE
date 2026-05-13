@@ -1,4 +1,4 @@
-# THE SCORES I HAD WITH MY MODEL:::
+# THE SCORES I HAD WITH MY MODEL WITH LFW :::
 
 python all-in.py
 Using device: cuda
@@ -49,3 +49,8 @@ Query: Jeb_Bush__Jeb_Bush_0012.jpg
 Top-1  accuracy: 59.76%
 Top-5  accuracy: 75.95%
 Top-10 accuracy: 82.14%
+
+
+
+# THE SCORES WITH VGGFACES2 FILE 1 :::
+
