@@ -5,11 +5,11 @@ Author: Kristine
 Branch: kristine-dinov2
 
 This is my first attempt at using DINOv2 (Vision Transformer, ViT-B/14)
-for the celebrity retrieval competition. 
+for the celebrity retrieval competition.
 
 The model is used as a pretrained feature extractor without any fine-tuning.
-DINOv2 is self-supervised, meaning it was trained without labels, which 
-hopefully makes it robust to the domain shift between real query images 
+DINOv2 is self-supervised, meaning it was trained without labels, which
+hopefully makes it robust to the domain shift between real query images
 and synthetic gallery images.
 
 Approach:
@@ -20,6 +20,7 @@ Approach:
 
 import os
 import json
+import datetime
 from PIL import Image
 import requests
 import torch
@@ -73,26 +74,26 @@ def batching(images, batch_size=16):
             features.append(feats)
     return torch.cat(features, dim=0)
 
-# ---- UPDATE THESE PATHS TO YOUR DATA ----
-data_folder = "/path/to/your/test_data"
-# -----------------------------------------
-
+# Paths
+data_folder = "/home/disi/data/lfw_split"
 query_folder = os.path.join(data_folder, "query")
 gallery_folder = os.path.join(data_folder, "gallery")
 
-# Load images
+# Load images - using 'with' to avoid too many open files
 query_images, query_filenames = [], []
 gallery_images, gallery_filenames = [], []
 
 for filename in os.listdir(query_folder):
     if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         query_filenames.append(filename)
-        query_images.append(Image.open(os.path.join(query_folder, filename)))
+        with Image.open(os.path.join(query_folder, filename)) as img:
+            query_images.append(img.convert("RGB").copy())
 
 for filename in os.listdir(gallery_folder):
     if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         gallery_filenames.append(filename)
-        gallery_images.append(Image.open(os.path.join(gallery_folder, filename)))
+        with Image.open(os.path.join(gallery_folder, filename)) as img:
+            gallery_images.append(img.convert("RGB").copy())
 
 print(f"Query images: {len(query_images)}")
 print(f"Gallery images: {len(gallery_images)}")
@@ -123,9 +124,39 @@ for i, query_filename in enumerate(query_filenames):
         gallery_filenames[idx] for idx in top_k_indices[i]
     ]
 
-# Submit
-submit(
-    results=results,
-    groupname="ALL-IN-dinov2",
-    url="http://localhost:3001/retrieval/"
-)
+# Local evaluation
+print("\nEvaluating...")
+top1, top5, top10, total = 0, 0, 0, 0
+
+for i, query_filename in enumerate(query_filenames):
+    query_identity = query_filename.split("__")[0]
+    retrieved = [gallery_filenames[idx].split("__")[0] for idx in top_k_indices[i]]
+
+    total += 1
+    if query_identity == retrieved[0]:
+        top1 += 1
+    if query_identity in retrieved[:5]:
+        top5 += 1
+    if query_identity in retrieved[:10]:
+        top10 += 1
+
+print(f"Top-1  accuracy: {top1  / total:.2%}")
+print(f"Top-5  accuracy: {top5  / total:.2%}")
+print(f"Top-10 accuracy: {top10 / total:.2%}")
+
+# Save results to file
+timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+with open(f"results_{timestamp}.txt", "w") as f:
+    f.write(f"Model: DINOv2 vitb14\n")
+    f.write(f"Dataset: LFW split\n")
+    f.write(f"Top-1:  {top1/total:.2%}\n")
+    f.write(f"Top-5:  {top5/total:.2%}\n")
+    f.write(f"Top-10: {top10/total:.2%}\n")
+print(f"Results saved to results_{timestamp}.txt")
+
+# Submit (uncomment on competition day)
+# submit(
+#     results=results,
+#     groupname="ALL-IN-dinov2",
+#     url="http://competition-server-url/retrieval/"
+# )
