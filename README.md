@@ -336,5 +336,115 @@ print("Done. Run your pipeline now with data_folder = 'test_data'")
 
 python script2.py
 
-python all-in.py
+nano all-in2.py
+
+```
+import os
+import json
+import requests
+import torch
+import torch.nn.functional as F
+import numpy as np
+from PIL import Image
+from sklearn.neighbors import NearestNeighbors
+import clip
+
+# ── Device setup ──────────────────────────────────────────────────────────────
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+print(f"Using device: {device}")
+
+# ── Load CLIP ─────────────────────────────────────────────────────────────────
+print("Loading CLIP model...")
+model, preprocess = clip.load("ViT-B/32", device=device)
+model.eval()
+
+VALID_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.bmp', '.gif')
+
+# ── Embed images from a folder WITHOUT loading all into memory ────────────────
+def extract_embeddings_from_folder(folder, batch_size=64):
+    filenames = [f for f in os.listdir(folder) if f.lower().endswith(VALID_EXTENSIONS)]
+    all_features = []
+
+    for i in range(0, len(filenames), batch_size):
+        batch_files = filenames[i:i + batch_size]
+        imgs = []
+        valid_files = []
+        for f in batch_files:
+            try:
+                img = Image.open(os.path.join(folder, f)).convert("RGB")
+                imgs.append(preprocess(img))
+                valid_files.append(f)
+            except Exception as e:
+                print(f"Skipping {f}: {e}")
+
+        if not imgs:
+            continue
+
+        inputs = torch.stack(imgs).to(device)
+        with torch.no_grad():
+            features = model.encode_image(inputs)
+        features = F.normalize(features, p=2, dim=1)
+        all_features.append(features.cpu().numpy())
+
+        if i % 500 == 0:
+            print(f"  Processed {i}/{len(filenames)}...")
+
+    return np.vstack(all_features), filenames
+
+
+# ── Data folders ──────────────────────────────────────────────────────────────
+data_folder = "test_data"
+query_folder = os.path.join(data_folder, "query")
+gallery_folder = os.path.join(data_folder, "gallery")
+
+# ── Extract embeddings ────────────────────────────────────────────────────────
+print("Extracting query embeddings...")
+query_features, query_filenames = extract_embeddings_from_folder(query_folder)
+print(f"Query: {len(query_filenames)} images")
+
+print("Extracting gallery embeddings...")
+gallery_features, gallery_filenames = extract_embeddings_from_folder(gallery_folder)
+print(f"Gallery: {len(gallery_filenames)} images")
+
+# ── Save embeddings to disk so you don't recompute every time ─────────────────
+np.save("query_features.npy", query_features)
+np.save("gallery_features.npy", gallery_features)
+np.save("query_filenames.npy", np.array(query_filenames))
+np.save("gallery_filenames.npy", np.array(gallery_filenames))
+print("Embeddings saved to disk.")
+
+# ── KNN retrieval ─────────────────────────────────────────────────────────────
+print("Building KNN index...")
+knn = NearestNeighbors(n_neighbors=10, metric='cosine', algorithm='brute')
+knn.fit(gallery_features)
+
+print("Retrieving top 10 matches...")
+distances, indices = knn.kneighbors(query_features)
+
+# ── Local evaluation ──────────────────────────────────────────────────────────
+top1, top5, top10, total = 0, 0, 0, 0
+for i, query_filename in enumerate(query_filenames):
+    query_identity = query_filename.split("__")[0]
+    retrieved = [gallery_filenames[j].split("__")[0] for j in indices[i]]
+    total += 1
+    if query_identity == retrieved[0]:
+        top1 += 1
+    if query_identity in retrieved[:5]:
+        top5 += 1
+    if query_identity in retrieved[:10]:
+        top10 += 1
+
+print(f"Top-1  accuracy: {top1  / total:.2%}")
+print(f"Top-5  accuracy: {top5  / total:.2%}")
+print(f"Top-10 accuracy: {top10 / total:.2%}")
+```
+
+#### RUN
+
+python all-in2.py
 
