@@ -6,6 +6,7 @@ WHAT TO DO AFTER OPENING WINDOWS POWERSHELL TO CONNECT TO THE AZURE LAB AND CREA
 ssh -p 5027 disi@lab-xxxxxx.westeurope.cloudapp.azure.com      ## YOUR AZURE LAB COMMAND FROM THE WEBSITE
 
 conda create -n mlproject python=3.10
+
 conda activate mlproject
 
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
