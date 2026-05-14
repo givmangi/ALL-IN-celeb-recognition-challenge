@@ -1,0 +1,5 @@
+Model: DINOv2 vitb14
+Dataset: LFW split
+Top-1:  17.74%
+Top-5:  26.73%
+Top-10: 31.73%
