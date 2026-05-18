@@ -1,0 +1,294 @@
+DURING THE COMPETITION I WOULD USE THE UN-COMMENTED ONE, AS THE FIRST ONE MAY TAKE TOO LONG
+
+AT THE BOTTOM I PASTE THE WHOLE FINETUNING SCRIPT. You also need to have a class for the transformation of the pictures. For me it is 'TripletFaceDataset'
+
+
+```
+# ── Augmentation transform ────────────────────────────────────────────────────
+# CLIP's preprocess expects a PIL image and does: resize, center crop, normalize
+# We insert augmentations BEFORE the final CLIP preprocessing
+n_px = 224  # ViT-L/14 input size
+
+
+# ----------------- COULD BE TOO LONG -------------------------------------
+
+
+# augment_transform = T.Compose([
+#     T.Resize(256),                                      # slightly larger than needed
+#     T.RandomHorizontalFlip(p=0.5),                      # mirror
+#     T.RandomRotation(degrees=15),                       # small rotation
+#     T.ColorJitter(
+#         brightness=0.3,
+#         contrast=0.3,
+#         saturation=0.3,
+#         hue=0.05
+#     ),                                                  # color shift (helps domain gap)
+#     T.RandomGrayscale(p=0.05),                          # occasional grayscale
+#     T.RandomCrop(n_px),                                 # crop to model input size
+#     T.ToTensor(),
+#     T.RandomErasing(
+#         p=0.3,
+#         scale=(0.02, 0.15),
+#         ratio=(0.3, 3.0)
+#     ),                                                  # random masking patches
+#     T.Normalize(
+#         mean=(0.48145466, 0.4578275, 0.40821073),       # CLIP's own mean/std
+#         std=(0.26862954, 0.26130258, 0.27577711)
+#     ),
+# ])
+
+
+# ---------------------------------------------------
+
+augment_transform = T.Compose([
+    T.Resize(256),
+    T.RandomHorizontalFlip(p=0.5),          # mirroring
+    T.ColorJitter(
+        brightness=0.2,
+        contrast=0.2,
+        saturation=0.2,
+        hue=0.02
+    ),                                       # mild color shift
+    T.RandomGrayscale(p=0.3),               # handles possible B&W gallery
+    T.CenterCrop(224),
+    T.ToTensor(),
+    T.Normalize(
+        mean=(0.48145466, 0.4578275, 0.40821073),
+        std=(0.26862954, 0.26130258, 0.27577711)
+    ),
+])
+```
+
+
+
+THE WHOLE SCRIPT:::
+
+
+```
+import os
+import random
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
+from PIL import Image
+import clip
+import numpy as np
+import torchvision.transforms as T
+
+# ── Device ────────────────────────────────────────────────────────────────────
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+print(f"Using device: {device}")
+
+# ── Load CLIP                USE TRAINED MODEL─────────────────────────────────────────────────────────────────
+print("Loading CLIP model...")
+model, clip_preprocess = clip.load("ViT-L/14", device=device)
+model = model.float()
+model.load_state_dict(torch.load("clip_finetuned.pt", map_location=device))
+print("Loaded LFW pre-trained weights as starting point")
+
+
+
+# _---------------------- WHEN TRAINING ORIGINAL MODEL::::::----------------------------------
+
+model, clip_preprocess = clip.load("ViT-L/14", device=device)
+model = model.float()
+# -----------------------------------
+
+
+# ── Freeze all layers, unfreeze last 2 blocks ─────────────────────────────────
+for param in model.parameters():
+    param.requires_grad = False
+for block in model.visual.transformer.resblocks[-2:]:
+    for param in block.parameters():
+        param.requires_grad = True
+
+trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+total = sum(p.numel() for p in model.parameters())
+print(f"Trainable parameters: {trainable:,} / {total:,}")
+
+# ── Augmentation transform ────────────────────────────────────────────────────
+# CLIP's preprocess expects a PIL image and does: resize, center crop, normalize
+# We insert augmentations BEFORE the final CLIP preprocessing
+n_px = 224  # ViT-L/14 input size
+
+
+# ----------------- COULD BE TOO LONG -------------------------------------
+
+
+# augment_transform = T.Compose([
+#     T.Resize(256),                                      # slightly larger than needed
+#     T.RandomHorizontalFlip(p=0.5),                      # mirror
+#     T.RandomRotation(degrees=15),                       # small rotation
+#     T.ColorJitter(
+#         brightness=0.3,
+#         contrast=0.3,
+#         saturation=0.3,
+#         hue=0.05
+#     ),                                                  # color shift (helps domain gap)
+#     T.RandomGrayscale(p=0.05),                          # occasional grayscale
+#     T.RandomCrop(n_px),                                 # crop to model input size
+#     T.ToTensor(),
+#     T.RandomErasing(
+#         p=0.3,
+#         scale=(0.02, 0.15),
+#         ratio=(0.3, 3.0)
+#     ),                                                  # random masking patches
+#     T.Normalize(
+#         mean=(0.48145466, 0.4578275, 0.40821073),       # CLIP's own mean/std
+#         std=(0.26862954, 0.26130258, 0.27577711)
+#     ),
+# ])
+
+
+# ---------------------------------------------------
+
+augment_transform = T.Compose([
+    T.Resize(256),
+    T.RandomHorizontalFlip(p=0.5),          # mirroring
+    T.ColorJitter(
+        brightness=0.2,
+        contrast=0.2,
+        saturation=0.2,
+        hue=0.02
+    ),                                       # mild color shift
+    T.RandomGrayscale(p=0.3),               # handles possible B&W gallery
+    T.CenterCrop(224),
+    T.ToTensor(),
+    T.Normalize(
+        mean=(0.48145466, 0.4578275, 0.40821073),
+        std=(0.26862954, 0.26130258, 0.27577711)
+    ),
+])
+
+
+# clean transform for validation (no augmentation)
+clean_transform = T.Compose([
+    T.Resize(n_px, interpolation=T.InterpolationMode.BICUBIC),
+    T.CenterCrop(n_px),
+    T.ToTensor(),
+    T.Normalize(
+        mean=(0.48145466, 0.4578275, 0.40821073),
+        std=(0.26862954, 0.26130258, 0.27577711)
+    ),
+])
+
+
+# ── Triplet Dataset ───────────────────────────────────────────────────────────
+class TripletFaceDataset(Dataset):
+    def __init__(self, train_dir, transform, num_triplets=5000): # 20000 if we have more time
+        self.transform = transform
+        self.num_triplets = num_triplets
+
+        self.identity_images = {}
+        for identity in os.listdir(train_dir):
+            identity_path = os.path.join(train_dir, identity)
+            if not os.path.isdir(identity_path):
+                continue
+            images = [
+                os.path.join(identity_path, f)
+                for f in os.listdir(identity_path)
+                if f.lower().endswith(('.jpg', '.jpeg', '.png'))
+            ]
+            if len(images) >= 2:
+                self.identity_images[identity] = images
+
+        self.identities = list(self.identity_images.keys())
+        total_imgs = sum(len(v) for v in self.identity_images.values())
+        print(f"Loaded {len(self.identities)} identities, {total_imgs} images")
+        print(f"Effective dataset size with augmentation: ~{total_imgs * 5} virtual images per epoch")
+
+    def __len__(self):
+        return self.num_triplets
+
+    def __getitem__(self, idx):
+        anchor_identity = random.choice(self.identities)
+        anchor_path, positive_path = random.sample(self.identity_images[anchor_identity], 2)
+
+        negative_identity = random.choice(self.identities)
+        while negative_identity == anchor_identity:
+            negative_identity = random.choice(self.identities)
+        negative_path = random.choice(self.identity_images[negative_identity])
+
+        # each image gets its own independent random augmentation
+        anchor   = self.transform(Image.open(anchor_path).convert("RGB"))
+        positive = self.transform(Image.open(positive_path).convert("RGB"))
+        negative = self.transform(Image.open(negative_path).convert("RGB"))
+
+        return anchor, positive, negative
+
+
+# ── Training setup ────────────────────────────────────────────────────────────
+train_dir = "data/train"   # change to your actual training folder
+
+dataset = TripletFaceDataset(train_dir, transform=augment_transform, num_triplets=5000)    # 20000 if we have more time
+dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=True)
+
+triplet_loss = nn.TripletMarginLoss(margin=1.0, p=2)
+optimizer = torch.optim.Adam(
+    filter(lambda p: p.requires_grad, model.parameters()),
+    lr=1e-6
+)
+
+
+# ── Encode helper ─────────────────────────────────────────────────────────────
+def encode(imgs):
+    features = model.encode_image(imgs.float())
+    return F.normalize(features, p=2, dim=1)
+
+
+# ── Training loop ─────────────────────────────────────────────────────────────
+NUM_EPOCHS = 3                      # 5 if we have more time
+print("Starting training...")
+
+for epoch in range(NUM_EPOCHS):
+    model.train()
+    for module in model.modules():
+        if isinstance(module, nn.BatchNorm2d):
+            module.eval()
+
+    total_loss = 0
+    num_batches = 0
+
+    for batch_idx, (anchors, positives, negatives) in enumerate(dataloader):
+        anchors   = anchors.to(device)
+        positives = positives.to(device)
+        negatives = negatives.to(device)
+
+        anchor_emb   = encode(anchors)
+        positive_emb = encode(positives)
+        negative_emb = encode(negatives)
+
+        if torch.isnan(anchor_emb).any():
+            print(f"NaN at batch {batch_idx}, skipping...")
+            continue
+
+        loss = triplet_loss(anchor_emb, positive_emb, negative_emb)
+
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
+
+        total_loss += loss.item()
+        num_batches += 1
+
+        if batch_idx % 50 == 0:
+            print(f"Epoch {epoch+1}/{NUM_EPOCHS} | Batch {batch_idx}/{len(dataloader)} | Loss: {loss.item():.4f}")
+
+    avg_loss = total_loss / num_batches if num_batches > 0 else float('nan')
+    print(f"Epoch {epoch+1} done. Avg loss: {avg_loss:.4f}")
+
+    # save checkpoint after every epoch in case time runs out
+    torch.save(model.state_dict(), f"clip_finetuned_epoch{epoch+1}.pt")
+    print(f"Checkpoint saved: clip_finetuned_epoch{epoch+1}.pt")
+
+# save final model
+torch.save(model.state_dict(), "clip_finetuned.pt")
+print("Final model saved to clip_finetuned.pt")
+```
