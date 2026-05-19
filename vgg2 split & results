@@ -1,0 +1,126 @@
+THE CODE FOR DOWNLOADING AND SPLITTING VGGFace2-HQ part 1..
+random seed = 1
+below the code i post my model results
+
+```
+import os
+import shutil
+import random
+import tarfile
+from collections import defaultdict
+from huggingface_hub import hf_hub_download
+
+# ── Download just one part (20GB) - enough for testing ───────────────────────
+print("Downloading VGGFace2-HQ part 1 (approx 20GB)...")
+tar_path = hf_hub_download(
+    repo_id="RichardErkhov/VGGFace2-HQ",
+    filename="vgg_face_parts/1.tar",
+    repo_type="dataset",
+    local_dir="./vggface2_download"
+)
+print(f"Downloaded to: {tar_path}")
+
+# ── Extract ───────────────────────────────────────────────────────────────────
+extract_path = "./vggface2_raw"
+os.makedirs(extract_path, exist_ok=True)
+print("Extracting tar file (this may take a few minutes)...")
+with tarfile.open(tar_path, "r") as tar:
+    tar.extractall(extract_path)
+print("Extraction done.")
+
+# ── Find the root folder with identity subfolders ────────────────────────────
+vgg_root = None
+for root, dirs, files in os.walk(extract_path):
+    subdirs = [d for d in dirs if not d.startswith('.')]
+    if len(subdirs) > 10:
+        vgg_root = root
+        break
+
+print(f"Found VGGFace2 root at: {vgg_root}")
+print(f"Sample identities: {os.listdir(vgg_root)[:5]}")
+
+# ── Filter identities with at least 2 images ─────────────────────────────────
+identity_images = defaultdict(list)
+for identity in os.listdir(vgg_root):
+    identity_path = os.path.join(vgg_root, identity)
+    if not os.path.isdir(identity_path):
+        continue
+    images = [f for f in os.listdir(identity_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    if len(images) >= 2:
+        identity_images[identity] = images
+
+print(f"Identities with at least 2 images: {len(identity_images)}")
+
+# ── Split into query and gallery ──────────────────────────────────────────────
+query_folder = "test_data/query"
+gallery_folder = "test_data/gallery"
+os.makedirs(query_folder, exist_ok=True)
+os.makedirs(gallery_folder, exist_ok=True)
+
+random.seed(1)
+
+for identity, images in identity_images.items():
+    images_shuffled = images.copy()
+    random.shuffle(images_shuffled)
+
+    # first image goes to query, the rest go to gallery
+    src = os.path.join(vgg_root, identity, images_shuffled[0])
+    shutil.copy(src, os.path.join(query_folder, f"{identity}__{images_shuffled[0]}"))
+
+    for img in images_shuffled[1:]:
+        src = os.path.join(vgg_root, identity, img)
+        shutil.copy(src, os.path.join(gallery_folder, f"{identity}__{img}"))
+
+print(f"Query images:   {len(os.listdir(query_folder))}")
+print(f"Gallery images: {len(os.listdir(gallery_folder))}")
+print("Done. Run your pipeline now with data_folder = 'test_data'")
+
+```
+
+
+
+(mlproject) disi@labPA5J2G:~$ python 18.5--run_saved_clip.py
+Using device: cuda
+Loading fine-tuned CLIP model...
+Model loaded.
+Extracting query embeddings...
+  0/1726...
+Queries: 1726
+Extracting gallery embeddings...
+  0/236494...
+  8000/236494...
+  16000/236494...
+  24000/236494...
+  32000/236494...
+  40000/236494...
+  48000/236494...
+  56000/236494...
+  64000/236494...
+  72000/236494...
+  80000/236494...
+  88000/236494...
+  96000/236494...
+  104000/236494...
+  112000/236494...
+  120000/236494...
+  128000/236494...
+  136000/236494...
+  144000/236494...
+  152000/236494...
+  160000/236494...
+  168000/236494...
+  176000/236494...
+  184000/236494...
+  192000/236494...
+  200000/236494...
+  208000/236494...
+  216000/236494...
+  224000/236494...
+  232000/236494...
+Gallery: 236494
+Saving embeddings so you don't recompute next time...
+Building KNN index...
+Retrieving top 10 matches...
+Top-1  accuracy: 89.40%
+Top-5  accuracy: 92.99%
+Top-10 accuracy: 93.97%
