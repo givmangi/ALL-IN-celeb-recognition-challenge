@@ -1,30 +1,22 @@
 """
-DINOv2 Experiment Script
-=========================
+DINOv2 ViT-B/14 - Final Competition Script (336x336 resolution)
+================================================================
 Author: Kristine
 Branch: kristine-dinov2
 
-Configurable script for testing different DINOv2 configurations.
-Images are loaded on-the-fly during batching to avoid memory issues.
+Model: DINOv2 ViT-B/14 — self-supervised vision transformer by Meta AI.
+Used as a pretrained feature extractor, optionally fine-tuned with triplet loss.
 
-All experiments include:
+Key features:
+- On-the-fly image loading (no RAM overload)
 - EXIF rotation fix
-- L2 normalized cosine similarity retrieval
-- Local evaluation (no server needed)
-- Face detection available but disabled for large datasets
+- Optional MTCNN face detection cropping (recommended for small datasets)
+- Embedding saving/loading to avoid recomputation
+- Local evaluation + competition server submission
 
-Experiments run so far:
--------------------------------------------------------
-Model           Resolution  Top-1    Top-5    Top-10
--------------------------------------------------------
-DINOv2 ViT-B/14   224      17.74%   26.73%   31.73%  (no face crop, LFW)
-DINOv2 ViT-B/14   336      18.63%   27.62%   31.55%  (no face crop, LFW)
-DINOv2 ViT-L/14   224      16.49%   27.62%   32.14%  (no face crop, LFW)
-DINOv2 ViT-L/14   336      OOM - exceeded 16GB GPU memory
-DINOv2 ViT-B/14   224      11.79%   20.18%   25.54%  (face crop, LFW)
-DINOv2 ViT-B/14   336      10.48%   19.52%   24.17%  (face crop, LFW)
--------------------------------------------------------
-Results on VGGFace2-HQ: TBD
+Results (no fine-tuning, no face crop):
+- LFW:         Top-1: 18.63%, Top-5: 27.62%, Top-10: 31.55% (336)
+- VGGFace2-HQ: Top-1: 32.44%, Top-5: 46.58%, Top-10: 53.59% (336)
 """
 
 import os
@@ -39,10 +31,14 @@ from facenet_pytorch import MTCNN
 # ── Configuration ─────────────────────────────────────────────────────────────
 MODEL_NAME   = "dinov2_vitb14"
 RESOLUTION   = 224
-BATCH_SIZE   = 16
-DATA_FOLDER  = "/home/disi/data/vggface2_train_split/test"
+BATCH_SIZE   = 8
+FACE_CROP    = False      # True for competition (~3000 images), False for large datasets
+SAVE_EMBEDDINGS = True   # save embeddings to avoid recomputing
+LOAD_EMBEDDINGS = False  # set True to load saved embeddings instead of recomputing
 GROUP_NAME   = "ALL-IN-dinov2"
-FACE_CROP    = False    # set True to enable face detection (slow on large datasets)
+
+# Update this path on competition day:
+DATA_FOLDER  = "/home/disi/data/vggface2_train_split/test"
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Device setup ──────────────────────────────────────────────────────────────
@@ -51,7 +47,7 @@ if torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 print(f"Using device: {device}")
-print(f"Model: {MODEL_NAME} | Resolution: {RESOLUTION}x{RESOLUTION} | Batch: {BATCH_SIZE} | Face crop: {FACE_CROP}")
+print(f"Model: {MODEL_NAME} | Resolution: {RESOLUTION} | Face crop: {FACE_CROP}")
 
 # ── Submit function ───────────────────────────────────────────────────────────
 def submit(results, groupname, url):
@@ -69,10 +65,20 @@ def submit(results, groupname, url):
 # ── Load DINOv2 ───────────────────────────────────────────────────────────────
 print(f"Loading {MODEL_NAME}...")
 model = torch.hub.load('facebookresearch/dinov2', MODEL_NAME)
+
+# Load fine-tuned weights if available
+checkpoint_path = "checkpoints/best_model_100pct.pth"
+if os.path.exists(checkpoint_path):
+    print(f"Loading fine-tuned weights from {checkpoint_path}...")
+    model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+    print("Fine-tuned weights loaded!")
+else:
+    print("No fine-tuned weights found, using pretrained model.")
+
 model = model.to(device)
 model.eval()
 
-# ── Load MTCNN face detector (only if needed) ─────────────────────────────────
+# ── Load MTCNN face detector ──────────────────────────────────────────────────
 if FACE_CROP:
     print("Loading face detector...")
     mtcnn = MTCNN(
@@ -91,23 +97,23 @@ preprocess = T.Compose([
                 std=[0.229, 0.224, 0.225]),
 ])
 
-# ── Face detection (optional) ─────────────────────────────────────────────────
+# ── Face detection ────────────────────────────────────────────────────────────
 def detect_and_crop_face(img):
     face_tensor = mtcnn(img)
     if face_tensor is not None:
         return T.ToPILImage()(face_tensor.cpu().clamp(0, 1))
     return img
 
-# ── Load single image from disk ───────────────────────────────────────────────
+# ── Load single image ─────────────────────────────────────────────────────────
 def load_image(path):
     with Image.open(path) as img:
         img = img.convert("RGB")
-        img = ImageOps.exif_transpose(img)       # rotation fix always on
+        img = ImageOps.exif_transpose(img)
         if FACE_CROP:
-            img = detect_and_crop_face(img)      # face crop optional
+            img = detect_and_crop_face(img)
         return img.copy()
 
-# ── Extract features from file paths (on the fly, no RAM overload) ────────────
+# ── Extract features on the fly ───────────────────────────────────────────────
 def extract_features(file_paths, batch_size=BATCH_SIZE):
     features = []
     for i in range(0, len(file_paths), batch_size):
@@ -116,9 +122,9 @@ def extract_features(file_paths, batch_size=BATCH_SIZE):
         inputs = torch.stack([preprocess(img) for img in imgs]).to(device)
         with torch.no_grad():
             feats = model(inputs)
-            features.append(feats.cpu())  # move to CPU to free GPU memory
-        if (i // batch_size) % 100 == 0:
-            print(f"  {i}/{len(file_paths)} images processed...")
+            features.append(feats.cpu())
+        if (i // batch_size) % 50 == 0:
+            print(f"  {min(i+batch_size, len(file_paths))}/{len(file_paths)} images processed...")
     return torch.cat(features, dim=0)
 
 # ── Collect file paths ────────────────────────────────────────────────────────
@@ -128,12 +134,12 @@ gallery_folder = os.path.join(DATA_FOLDER, "gallery")
 query_paths, query_filenames     = [], []
 gallery_paths, gallery_filenames = [], []
 
-for filename in os.listdir(query_folder):
+for filename in sorted(os.listdir(query_folder)):
     if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         query_paths.append(os.path.join(query_folder, filename))
         query_filenames.append(filename)
 
-for filename in os.listdir(gallery_folder):
+for filename in sorted(os.listdir(gallery_folder)):
     if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         gallery_paths.append(os.path.join(gallery_folder, filename))
         gallery_filenames.append(filename)
@@ -142,16 +148,10 @@ print(f"Query images: {len(query_paths)}")
 print(f"Gallery images: {len(gallery_paths)}")
 
 # ── Extract or load features ──────────────────────────────────────────────────
-embedding_file = f"results/embeddings_{MODEL_NAME}_{RESOLUTION}_{os.path.basename(DATA_FOLDER)}.pt"
-os.makedirs("results", exist_ok=True)
-
-if os.path.exists(embedding_file):
-    print(f"Loading saved embeddings from {embedding_file}...")
-    saved = torch.load(embedding_file)
-    query_features    = saved['query_features']
-    gallery_features  = saved['gallery_features']
-    query_filenames   = saved['query_filenames']
-    gallery_filenames = saved['gallery_filenames']
+if LOAD_EMBEDDINGS and os.path.exists("query_embeddings.pt"):
+    print("Loading saved embeddings...")
+    query_features   = torch.load("query_embeddings.pt")
+    gallery_features = torch.load("gallery_embeddings.pt")
     print("Embeddings loaded!")
 else:
     print("Processing query images...")
@@ -161,13 +161,10 @@ else:
     gallery_features = extract_features(gallery_paths)
     torch.cuda.empty_cache()
 
-    torch.save({
-        'query_features':    query_features,
-        'gallery_features':  gallery_features,
-        'query_filenames':   query_filenames,
-        'gallery_filenames': gallery_filenames
-    }, embedding_file)
-    print(f"Embeddings saved to {embedding_file}")
+    if SAVE_EMBEDDINGS:
+        torch.save(query_features,   "query_embeddings.pt")
+        torch.save(gallery_features, "gallery_embeddings.pt")
+        print("Embeddings saved!")
 
 # ── Normalize ─────────────────────────────────────────────────────────────────
 print("Normalizing features...")
@@ -196,7 +193,6 @@ top1, top5, top10, total = 0, 0, 0, 0
 for i, query_filename in enumerate(query_filenames):
     query_identity = query_filename.split("__")[0]
     retrieved = [gallery_filenames[idx].split("__")[0] for idx in top_k_indices[i]]
-
     total += 1
     if query_identity == retrieved[0]:
         top1 += 1
@@ -211,13 +207,13 @@ print(f"Top-10 accuracy: {top10 / total:.2%}")
 
 # ── Save results ──────────────────────────────────────────────────────────────
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-result_filename = f"results/results_{MODEL_NAME}_{RESOLUTION}_{timestamp}.txt"
 os.makedirs("results", exist_ok=True)
+result_filename = f"results/results_final_{MODEL_NAME}_{RESOLUTION}_{timestamp}.txt"
 with open(result_filename, "w") as f:
     f.write(f"Model: {MODEL_NAME}\n")
     f.write(f"Resolution: {RESOLUTION}x{RESOLUTION}\n")
-    f.write(f"Batch size: {BATCH_SIZE}\n")
     f.write(f"Face detection: {FACE_CROP}\n")
+    f.write(f"Fine-tuned: {os.path.exists(checkpoint_path)}\n")
     f.write(f"Dataset: {DATA_FOLDER}\n")
     f.write(f"Top-1:  {top1/total:.2%}\n")
     f.write(f"Top-5:  {top5/total:.2%}\n")

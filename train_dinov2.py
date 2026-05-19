@@ -33,7 +33,7 @@ from facenet_pytorch import MTCNN
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 MODEL_NAME   = "dinov2_vitb14"
-RESOLUTION   = 336
+RESOLUTION   = 224
 BATCH_SIZE   = 16        # triplets per batch
 EPOCHS       = 15
 LR           = 1e-5      # small learning rate for fine-tuning
@@ -42,7 +42,7 @@ SEED         = 1         # for reproducible train/val split
 NUM_TRIPLETS  = 5000     # triplets per epoch
 EMBEDDING_DIM = 768      # ViT-B/14 output dimension
 
-DATA_FOLDER  = "/home/disi/data/vggface2_split"  # we'll create this split
+DATA_FOLDER  = "/home/disi/data/vggface2_raw/1"  # we'll create this split
 SAVE_PATH    = "checkpoints"                       # where to save best model
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -108,7 +108,7 @@ def load_image(path):
     with Image.open(path) as img:
         img = img.convert("RGB")
         img = ImageOps.exif_transpose(img)  # rotation fix
-        img = detect_and_crop_face(img)      # face crop
+        # img = detect_and_crop_face(img)      # face crop disabled
         return img.copy()
 
 # ── Triplet Dataset ───────────────────────────────────────────────────────────
@@ -195,14 +195,14 @@ triplet_loss = nn.TripletMarginLoss(margin=MARGIN, p=2)
 # ── Dataset and DataLoader ────────────────────────────────────────────────────
 print("Loading training dataset...")
 train_dataset = TripletFaceDataset(
-    data_folder=os.path.join(DATA_FOLDER, "train"),
+    data_folder=DATA_FOLDER,
     transform=augment_transform
 )
 dataloader = DataLoader(
     train_dataset,
     batch_size=BATCH_SIZE,
     shuffle=True,
-    num_workers=4,
+    num_workers=0,
     pin_memory=True
 )
 
@@ -257,14 +257,14 @@ for epoch in range(EPOCHS):
     print(f"Epoch {epoch+1}/{EPOCHS} complete — Avg Loss: {avg_loss:.4f}")
 
     # Save checkpoint every epoch
-    torch.save(model.state_dict(), f"{SAVE_PATH}/checkpoint_epoch{epoch+1}.pth")
+    torch.save(model.state_dict(), f"{SAVE_PATH}/checkpoint_100pct_epoch{epoch+1}.pth")
     print(f"  Checkpoint saved: checkpoint_epoch{epoch+1}.pth")
 
     # Save best model
     if avg_loss < best_loss:
         best_loss = avg_loss
         best_epoch = epoch + 1
-        torch.save(model.state_dict(), f"{SAVE_PATH}/best_model.pth")
+        torch.save(model.state_dict(), f"{SAVE_PATH}/best_model_100pct.pth")
         print(f"  ✓ Best model saved (epoch {best_epoch}, loss {best_loss:.4f})")
 
 print(f"\nTraining complete!")
