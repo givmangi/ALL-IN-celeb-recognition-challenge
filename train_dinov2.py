@@ -208,8 +208,74 @@ dataloader = DataLoader(
 
 print(f"{len(dataloader)} batches per epoch")
 
+# ── Validation dataset ────────────────────────────────────────────────────────
+print("Loading validation dataset...")
+val_folder = os.path.join(DATA_FOLDER.replace("/1", ""), "../vggface2_train_split/val")
+
+# Build val identity -> image paths dictionary
+val_identity_to_images = {}
+for identity in os.listdir(val_folder):
+    identity_path = os.path.join(val_folder, identity)
+    if not os.path.isdir(identity_path):
+        continue
+    images = [
+        os.path.join(identity_path, f)
+        for f in os.listdir(identity_path)
+        if f.lower().endswith(('.jpg', '.jpeg', '.png'))
+    ]
+    if len(images) >= 2:
+        val_identity_to_images[identity] = images
+
+print(f"Validation: {len(val_identity_to_images)} identities")
+
+def validate(model, identity_to_images, device, batch_size=32):
+    """
+    For each identity, use first image as query, rest as gallery.
+    Compute Top-1 accuracy across all identities.
+    """
+    model.eval()
+    
+    query_paths, query_identities = [], []
+    gallery_paths, gallery_identities = [], []
+
+    for identity, images in identity_to_images.items():
+        random.shuffle(images)
+        query_paths.append(images[0])
+        query_identities.append(identity)
+        for img in images[1:]:
+            gallery_paths.append(img)
+            gallery_identities.append(identity)
+
+    def extract(paths):
+        features = []
+        for i in range(0, len(paths), batch_size):
+            batch = paths[i:i+batch_size]
+            imgs = []
+            for p in batch:
+                with Image.open(p) as img:
+                    img = img.convert("RGB")
+                    img = ImageOps.exif_transpose(img)
+                    imgs.append(img.copy())
+            inputs = torch.stack([clean_transform(img) for img in imgs]).to(device)
+            with torch.no_grad():
+                feats = model(inputs)
+                features.append(feats.cpu())
+        return torch.nn.functional.normalize(torch.cat(features, dim=0), p=2, dim=1)
+
+    query_features   = extract(query_paths)
+    gallery_features = extract(gallery_paths)
+
+    similarity_matrix = torch.matmul(query_features, gallery_features.T)
+    top1_indices = torch.argmax(similarity_matrix, dim=1)
+
+    correct = sum(
+        query_identities[i] == gallery_identities[top1_indices[i]]
+        for i in range(len(query_identities))
+    )
+    return correct / len(query_identities)
+
 # ── Training loop ─────────────────────────────────────────────────────────────
-best_loss = float('inf')
+best_val_acc = 0.0
 best_epoch = 0
 
 print(f"Starting training for {EPOCHS} epochs...")
@@ -256,17 +322,21 @@ for epoch in range(EPOCHS):
     avg_loss = epoch_loss / num_batches if num_batches > 0 else float('nan')
     print(f"Epoch {epoch+1}/{EPOCHS} complete — Avg Loss: {avg_loss:.4f}")
 
-    # Save checkpoint every epoch
-    torch.save(model.state_dict(), f"{SAVE_PATH}/checkpoint_100pct_epoch{epoch+1}.pth")
-    print(f"  Checkpoint saved: checkpoint_epoch{epoch+1}.pth")
+    # ── Validation ────────────────────────────────────────────────────────────
+    val_acc = validate(model, val_identity_to_images, device)
+    print(f"  Val Top-1: {val_acc:.2%}")
 
-    # Save best model
-    if avg_loss < best_loss:
-        best_loss = avg_loss
+    # Save checkpoint every epoch
+    torch.save(model.state_dict(), f"{SAVE_PATH}/checkpoint_split_epoch{epoch+1}.pth")
+    print(f"  Checkpoint saved: checkpoint_split_epoch{epoch+1}.pth")
+
+    # Save best model based on validation accuracy
+    if val_acc > best_val_acc:
+        best_val_acc = val_acc
         best_epoch = epoch + 1
-        torch.save(model.state_dict(), f"{SAVE_PATH}/best_model_100pct.pth")
-        print(f"  ✓ Best model saved (epoch {best_epoch}, loss {best_loss:.4f})")
+        torch.save(model.state_dict(), f"{SAVE_PATH}/best_model_split.pth")
+        print(f"  ✓ Best model saved (epoch {best_epoch}, val Top-1: {best_val_acc:.2%})")
 
 print(f"\nTraining complete!")
-print(f"Best model at epoch {best_epoch} with loss {best_loss:.4f}")
-print(f"Saved to {SAVE_PATH}/best_model.pth")
+print(f"Best model: epoch {best_epoch}, val Top-1: {best_val_acc:.2%}")
+print(f"Saved to {SAVE_PATH}/best_model_split.pth")
