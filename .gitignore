@@ -1,2 +1,4 @@
 ML_comp_env/
 results/*.pt
+query_embeddings.pt
+gallery_embeddings.pt
