@@ -1,0 +1,9 @@
+Model: dinov2_vitb14
+Resolution: 224x224
+Batch size: 8
+Face detection: MTCNN
+Rotation fix: EXIF transpose
+Dataset: /home/disi/data/lfw_split
+Top-1:  11.79%
+Top-5:  20.18%
+Top-10: 25.54%
