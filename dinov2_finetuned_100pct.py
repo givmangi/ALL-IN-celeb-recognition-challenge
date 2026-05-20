@@ -50,7 +50,7 @@ print(f"Using device: {device}")
 print(f"Model: {MODEL_NAME} | Resolution: {RESOLUTION} | Face crop: {FACE_CROP}")
 
 # ── Submit function ───────────────────────────────────────────────────────────
-def submit(results, groupname, url):
+def submit(results, groupname, url, result_file=None):
     res = {}
     res['groupname'] = groupname
     res['images'] = results
@@ -58,9 +58,15 @@ def submit(results, groupname, url):
     response = requests.post(url, res)
     try:
         result = json.loads(response.text)
-        print(f"accuracy is {result['accuracy']}")
+        accuracy = result['accuracy']
+        print(f"accuracy is {accuracy}")
+        if result_file:
+            with open(result_file, "a") as f:
+                f.write(f"Server accuracy: {accuracy}\n")
+        return accuracy
     except json.JSONDecodeError:
         print(f"ERROR: {response.text}")
+        return None
 
 # ── Load DINOv2 ───────────────────────────────────────────────────────────────
 print(f"Loading {MODEL_NAME}...")
@@ -225,4 +231,5 @@ print(f"Results saved to {result_filename}")
 #     results=results,
 #     groupname=GROUP_NAME,
 #     url="http://competition-server-url/retrieval/"
+#     result_file=result_filename
 # )
