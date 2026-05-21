@@ -26,15 +26,27 @@ Given a real photograph of a celebrity (query), retrieve the 10 most similar AI-
 
 ### Why we need this script
 
-Our team's primary pipeline relies on models that has been fine-tuned on **VGGFace2-HQ** — a version of VGGFace2 where every real photo has been processed by GFPGAN for face restoration and enhancement. This means our fine-tuned model has learned to map images that *look like GFPGAN-restored faces* to identity-discriminative embeddings.
+Our team's primary pipeline relies on a CLIP model that has been fine-tuned on **VGGFace2-HQ** — a version of VGGFace2 where every real photo has been processed by GFPGAN for face restoration and enhancement. This means our fine-tuned model has learned to map images that *look like GFPGAN-restored faces* to identity-discriminative embeddings.
 
 On competition day we receive:
 - **Query images**: real photographs of celebrities (natural domain).
 - **Gallery images**: synthetic AI-generated images of celebrities (synthetic domain).
 
-Our model expects images in the GFPGAN-restored style. Real query photos already roughly match the "original" side of our training pairs. The synthetic gallery images, however, do not match anything the model saw during fine-tuning. By applying GFPGAN to the gallery before extracting embeddings, we push the gallery distribution closer to what our model expects, narrowing the test-time domain gap.
+Our fine-tuned models expect images that resemble GFPGAN-restored faces. The competition data does not naturally match this expectation, so we apply GFPGAN at test time to close the gap.
 
-In short: **GFPGAN is applied to the gallery, not the query.** Queries are left as-is.
+### Two strategies to consider
+
+There are two reasonable ways to apply GFPGAN at test time, and which one works best is an empirical question that should be tested rather than assumed:
+
+**Strategy 1 — Augment gallery only.** Real queries already roughly match the "real" side of our training pairs, so we leave them as-is. The synthetic gallery is augmented to push it toward the "restored" side. This relies on the model's *learned cross-domain mapping* to bring query and gallery embeddings together.
+
+**Strategy 2 — Augment both query and gallery.** Both folders are processed by GFPGAN, putting them into a shared "GFPGAN-output" domain. This makes the inputs more pixel-level similar to each other at the cost of moving queries away from the training "real" distribution.
+
+Each strategy has plausible arguments in its favor:
+- Strategy 1 preserves the alignment between queries and the training "real" side, but assumes GFPGAN on synthetic input produces something close enough to the training "restored" side.
+- Strategy 2 maximizes the similarity between query and gallery inputs at inference, but assumes the fine-tuned model is robust to a domain shift on the query side as well.
+
+**Recommendation: prepare and benchmark both pipelines.** During the dry run (and on competition day if time permits), produce results for both strategies on the same data and submit whichever scores higher. The augmentation script doesn't care which folder it's pointed at, so producing both versions is just two invocations of the same script.
 
 ### What GFPGAN does to an image
 
@@ -108,7 +120,7 @@ COMPETITION_DATA_FOLDER/
         └── ...
 ```
 
-Augment the gallery:
+**Strategy 1 — augment gallery only:**
 
 ```bash
 python gfpgan_augment.py \
@@ -117,21 +129,32 @@ python gfpgan_augment.py \
     --model_path experiments/pretrained_models/GFPGANCleanv1-NoCE-C2.pth
 ```
 
-This produces `COMPETITION_DATA_FOLDER/test/gallery_hq/` containing the GFPGAN-processed gallery images. The downstream retrieval script should then point at `gallery_hq/` instead of `gallery/`.
+The downstream retrieval script then uses `COMPETITION_DATA_FOLDER/test/query/` and `COMPETITION_DATA_FOLDER/test/gallery_hq/`.
 
-**Do not augment the query folder.** Queries are real photos and should remain as-is.
+**Strategy 2 — augment both:**
 
-**Do not augment the training data on competition day.** If the team plans to use the competition training set for any test-time refinement, augmentation of training images should also be considered — but for the primary retrieval pipeline, only the gallery is augmented.
+```bash
+# Same as above, plus:
+python gfpgan_augment.py \
+    --input COMPETITION_DATA_FOLDER/test/query/ \
+    --output COMPETITION_DATA_FOLDER/test/query_hq/ \
+    --model_path experiments/pretrained_models/GFPGANCleanv1-NoCE-C2.pth
+```
+
+The downstream retrieval script then uses `COMPETITION_DATA_FOLDER/test/query_hq/` and `COMPETITION_DATA_FOLDER/test/gallery_hq/`.
+
+**Do not augment the training data on competition day** — fine-tuning has already been done during the prep phase. If any test-time refinement using the competition training set is planned, augmentation of training images would need to be considered separately.
 
 ### Timing considerations
 
 GFPGAN processes images one at a time and is moderately compute-intensive. On a single GPU expect roughly 0.5–1 second per image, so ~3000 gallery images should take 25–50 minutes. Plan accordingly given the 2-hour competition window:
 
 - Start gallery augmentation **immediately** after receiving the test data.
-- The query embeddings can be extracted in parallel while augmentation runs (queries don't need GFPGAN).
-- Gallery embeddings are extracted *after* augmentation completes.
+- If running Strategy 2, the query folder (~1500 images) also needs augmenting — that's another 15–25 minutes.
+- Embedding extraction on un-augmented images can happen in parallel with augmentation if your hardware allows.
+- Plan to have **both** the un-augmented baseline submission and the augmented submission ready before the deadline, so you have a fallback if augmentation produces unexpected issues.
 
-If timing is tight, consider running the embedding extraction on the original (un-augmented) gallery as a fallback in case augmentation has issues — both pipelines should be ready to submit.
+If timing is very tight, consider augmenting only the gallery (Strategy 1) — it's the higher-priority side because the model's training pairs had real images on the query side and restored images on the gallery side.
 
 ### Arguments
 
