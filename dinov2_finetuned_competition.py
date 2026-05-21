@@ -73,7 +73,7 @@ print(f"Loading {MODEL_NAME}...")
 model = torch.hub.load('facebookresearch/dinov2', MODEL_NAME)
 
 # Load fine-tuned weights if available
-checkpoint_path = "checkpoints/best_model_split_v3_epoch3.pth"
+checkpoint_path = "checkpoints/best_model_competition.pth"
 if os.path.exists(checkpoint_path):
     print(f"Loading fine-tuned weights from {checkpoint_path}...")
     model.load_state_dict(torch.load(checkpoint_path, map_location=device))
