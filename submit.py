@@ -15,7 +15,7 @@ def submit_and_log(res_dict, model_name, group_name = "ALL-IN", url ="", log_fil
     
     payload = {
         "groupname": group_name,
-        "results": res_dict
+        "images": res_dict
     }
     server_response_text = ""
     try:
