@@ -50,23 +50,42 @@ print(f"Using device: {device}")
 print(f"Model: {MODEL_NAME} | Resolution: {RESOLUTION} | Face crop: {FACE_CROP}")
 
 # ── Submit function ───────────────────────────────────────────────────────────
-def submit(results, groupname, url, result_file=None):
-    res = {}
-    res['groupname'] = groupname
-    res['images'] = results
-    res = json.dumps(res)
-    response = requests.post(url, res)
+def submit_and_log(res_dict, model_name, group_name="ALL-IN", url="", log_file="/home/disi/logs/submission_log.txt"):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] Submitting '{model_name}' as '{group_name}'...")
+    
+    payload = json.dumps({
+        "groupname": group_name,
+        "images": res_dict      # ← keeping 'images' as per professor's baseline
+    })
+    
+    server_response_text = ""
     try:
-        result = json.loads(response.text)
-        accuracy = result['accuracy']
-        print(f"accuracy is {accuracy}")
-        if result_file:
-            with open(result_file, "a") as f:
-                f.write(f"Server accuracy: {accuracy}\n")
-        return accuracy
-    except json.JSONDecodeError:
-        print(f"ERROR: {response.text}")
-        return None
+        response = requests.post(url, payload, timeout=30)
+        response.raise_for_status()
+        server_response_text = response.text.strip()
+        print(f"\nSUCCESS! Server responded: {server_response_text}\n")
+    except requests.exceptions.HTTPError as http_err:
+        server_response_text = f"HTTP Error: {http_err} - {response.text}"
+        print(f"\nERROR: {server_response_text}\n")
+    except Exception as err:
+        server_response_text = f"Connection FAILED: {err}"
+        print(f"\nERROR: {server_response_text}\n")
+
+    log_entry = (
+        f"Time:\t {timestamp}\n"
+        f"Group:\t {group_name}\n"
+        f"Model:\t {model_name}\n"
+        f"Result:\t {server_response_text}\n"
+        f"{'-'*60}\n"
+    )
+    try:
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(log_entry)
+        print(f"Log saved to: {log_file}")
+    except Exception as e:
+        print(f"Warning: Could not write log. Error: {e}")
 
 # ── Load DINOv2 (pretrained, no fine-tuning) ──────────────────────────────────
 print(f"Loading {MODEL_NAME}...")
@@ -219,10 +238,11 @@ with open(result_filename, "w") as f:
     f.write(f"--- Server Score (competition) ---\n")
 print(f"Results saved to {result_filename}")
 
- ── Submit (uncomment on competition day) ─────────────────────────────────────
- submit(
-     results=results,
-     groupname=GROUP_NAME,
-     url="http://competition-server-url/retrieval/"
-     result_file=result_filename
+# ── Submit (uncomment on competition day) ─────────────────────────────────────
+ submit_and_log(
+    res_dict=results,
+    model_name="DINOv2_pretrained",  # change per script
+    group_name=GROUP_NAME,
+    url="http://competition-server-url/retrieval/",
+    log_file="/home/disi/logs/submission_log.txt"
 )
