@@ -109,4 +109,4 @@ for i, query_filename in enumerate(query_filenames):
     results[query_filename] = top_k_filenames[i]
     
 # Submit the results
-submit(results=results, groupname="resnet50-imagenet", url="http://localhost:3001/retrieval/")
+submit(results=results, groupname="ALL-IN", url="http://videosim.disi.unitn.it:3001/retrieval/")

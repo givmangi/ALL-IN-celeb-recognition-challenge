@@ -26,7 +26,7 @@ GROUP_NAME = "ALL-IN"
 LOCAL_TEST_FOLDER = "vggface2_train_split/val"
 
 # which weights to use
-WEIGHTS_PATH = "clip_competition_epoch5.pt"
+WEIGHTS_PATH = "clip_finetuned_final.pt"
 
 # tag for the submission log so we can tell variants apart
 MODEL_TAG = "CLIP_ViT-L-14_clip_competition_epoch5_AUGgallery"
