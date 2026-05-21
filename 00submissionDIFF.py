@@ -19,7 +19,7 @@ MODE = "competition"  # "local" for testing, "competition" for submission
 # competition mode settings
 QUERY_FOLDER = "/home/disi/test/query"  # change on competition day
 GALLERY_FOLDER = "/home/disi/test/gallery"  # change on competition day
-SUBMIT_URL = "xxx"  # change on competition day
+SUBMIT_URL = "http://videosim.disi.unitn.it:3001/retrieval/"  # change on competition day
 GROUP_NAME = "ALL-IN"  # change to your group name
 
 # local evaluation mode settings
