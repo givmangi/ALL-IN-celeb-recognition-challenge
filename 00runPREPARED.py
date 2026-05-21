@@ -19,7 +19,7 @@ MODE = "competition"  # "local" for testing, "competition" for submission
 # competition mode settings
 QUERY_FOLDER = "/home/disi/test/query"  # change on competition day
 GALLERY_FOLDER = "/home/disi/test/gallery"  # change on competition day
-SUBMIT_URL = "xxx"  # change on competition day
+SUBMIT_URL = "http://videosim.disi.unitn.it:3001/retrieval/"  # change on competition day
 GROUP_NAME = "ALL-IN"  # change to your group name
 
 # local evaluation mode settings
@@ -30,7 +30,11 @@ LOCAL_TEST_FOLDER = "vggface2_train_split/val"  # your local split for testing
 # WEIGHTS_PATH = "clip_finetuned_final_LFWbase.pt"
 # WEIGHTS_PATH = "clip_finetuned_final.pt"
 # WEIGHTS_PATH = "clip_competition.pt"
-WEIGHTS_PATH = "clip_competition_epoch5.pt"
+# WEIGHTS_PATH = "clip_competition_epoch5.pt"
+WEIGHTS_PATH = "clip_competition_epoch2.pt" ### ZERO-SHOT TRAINED 1/2 EPOCH
+
+##best model was with out of the box finetuned CLIP-ViT-L/14 on the competition training data   EPOCH #3 - see 00train.py
+
 # ══════════════════════════════════════════════════════════════════════════════
 
 # ── Device ────────────────────────────────────────────────────────────────────
@@ -210,7 +214,7 @@ if MODE == "competition":
     # Using your friend's submission method with the correct parameters
     submit_and_log(
         res_dict=results,
-        model_name="CLIP_ViT-L-14_clip_competition_epoch5",
+        model_name="CLIP_ViT-L-14_clip_competition_epoch2",
         group_name=GROUP_NAME,
         url=SUBMIT_URL
     )
