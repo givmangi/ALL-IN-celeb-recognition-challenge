@@ -221,15 +221,17 @@ with open(result_filename, "w") as f:
     f.write(f"Face detection: {FACE_CROP}\n")
     f.write(f"Fine-tuned: {os.path.exists(checkpoint_path)}\n")
     f.write(f"Dataset: {DATA_FOLDER}\n")
+    f.write(f"--- Local Evaluation (VGGFace2 format) ---\n")
     f.write(f"Top-1:  {top1/total:.2%}\n")
     f.write(f"Top-5:  {top5/total:.2%}\n")
     f.write(f"Top-10: {top10/total:.2%}\n")
+    f.write(f"--- Server Score (competition) ---\n")
 print(f"Results saved to {result_filename}")
 
-# ── Submit (uncomment on competition day) ─────────────────────────────────────
-# submit(
-#     results=results,
-#     groupname=GROUP_NAME,
-#     url="http://competition-server-url/retrieval/"
-#     result_file=result_filename
-# )
+ ── Submit (uncomment on competition day) ─────────────────────────────────────
+ submit(
+     results=results,
+     groupname=GROUP_NAME,
+     url="http://competition-server-url/retrieval/"
+     result_file=result_filename
+ )
