@@ -13,10 +13,12 @@ import torchvision.transforms as T
 # ══════════════════════════════════════════════════════════════════════════════
 
 TRAIN_DIR       = "train"          # change to competition training folder on the day
-STARTING_WEIGHTS = "clip_finetuned_vgg.pt"  # our best pre-trained model
 
-NUM_TRIPLETS = 6000   # reduce to 5000 if time is short
-NUM_EPOCHS   = 10       # reduce to 2 if time is short
+# STARTING_WEIGHTS = "clip_finetuned_vgg.pt"  # our best pre-trained model
+STARTING_WEIGHTS = ""  # out-of-box model  <--------- THIS ONE WE'VE USED
+
+NUM_TRIPLETS = 10000   # reduce to 5000 if time is short
+NUM_EPOCHS   = 5       # reduce to 2 if time is short
 BATCH_SIZE   = 32
 LR           = 1e-6
 
@@ -147,6 +149,9 @@ def encode(imgs):
 # ── Training loop ─────────────────────────────────────────────────────────────
 print(f"\nStarting training: {NUM_EPOCHS} epochs x {NUM_TRIPLETS} triplets")
 
+# Initialize a tracker for the best loss
+best_loss = float('inf')
+
 for epoch in range(NUM_EPOCHS):
     model.train()
     for module in model.modules():
@@ -185,13 +190,19 @@ for epoch in range(NUM_EPOCHS):
     avg_loss = total_loss / num_batches if num_batches > 0 else float('nan')
     print(f"Epoch {epoch+1} done. Avg loss: {avg_loss:.4f}")
 
-    # save every epoch in case you run out of time
+    # 1. Save every epoch just as a backup
     ckpt = f"clip_competition_epoch{epoch+1}.pt"
     torch.save(model.state_dict(), ckpt)
-    print(f"Checkpoint saved: {ckpt}")
+    
+    # 2. Check if this is the best epoch and overwrite SAVE_NAME if it is
+    if avg_loss < best_loss:
+        best_loss = avg_loss
+        torch.save(model.state_dict(), SAVE_NAME)
+        print(f"⭐ New best model saved to {SAVE_NAME} (Loss improved to {best_loss:.4f})")
+    else:
+        print(f"Checkpoint saved: {ckpt}. (Did not beat best loss of {best_loss:.4f})")
 
-torch.save(model.state_dict(), SAVE_NAME)
-print(f"\nFinal model saved to {SAVE_NAME}")
+print(f"\nTraining complete. The best weights are saved in {SAVE_NAME}")
 
 '''
 On competition day the only things to change are at the top:
