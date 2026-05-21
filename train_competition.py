@@ -35,7 +35,7 @@ NUM_TRIPLETS  = 5000
 
 # !! UPDATE THIS ON COMPETITION DAY !!
 DATA_FOLDER   = "/path/to/competition/training/data"
-CHECKPOINT_IN  = "checkpoints/best_model_split.pth"   # starting point
+CHECKPOINT_IN  = "checkpoints/best_model_split_v3_epoch3.pth"   # starting point
 CHECKPOINT_OUT = "checkpoints/best_model_competition.pth"  # output
 # ─────────────────────────────────────────────────────────────────────────────
 
