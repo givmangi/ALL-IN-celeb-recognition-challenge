@@ -17,8 +17,8 @@ import datetime
 MODE = "competition"  # "local" for testing, "competition" for submission
 
 # competition mode settings
-QUERY_FOLDER = "/home/disi/test/query"                      # un-augmented queries
-GALLERY_FOLDER = "/home/disi/augmented_gallery"             # GFPGAN-augmented gallery
+QUERY_FOLDER = "/home/disi/ALL-IN-celeb-recognition-challenge/test/query"                      # un-augmented queries
+GALLERY_FOLDER = "/home/disi/ALL-IN-celeb-recognition-challenge/augmented_gallery"             # GFPGAN-augmented gallery
 SUBMIT_URL = "xxx"                                          # change on competition day
 GROUP_NAME = "ALL-IN"
 
@@ -26,7 +26,7 @@ GROUP_NAME = "ALL-IN"
 LOCAL_TEST_FOLDER = "vggface2_train_split/val"
 
 # which weights to use
-WEIGHTS_PATH = "clip_finetuned_final.pt"
+WEIGHTS_PATH = "ALL-IN-celeb-recognition-challenge/clip_finetuned_final.pt"
 
 # tag for the submission log so we can tell variants apart
 MODEL_TAG = "CLIP_ViT-L-14_clip_competition_epoch5_AUGgallery"
