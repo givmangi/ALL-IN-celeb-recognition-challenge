@@ -19,7 +19,7 @@ MODE = "competition"  # "local" for testing, "competition" for submission
 # competition mode settings
 QUERY_FOLDER = "/home/disi/ALL-IN-celeb-recognition-challenge/test/query"                      # un-augmented queries
 GALLERY_FOLDER = "/home/disi/ALL-IN-celeb-recognition-challenge/augmented_gallery"             # GFPGAN-augmented gallery
-SUBMIT_URL = "xxx"                                          # change on competition day
+SUBMIT_URL = "https://didatticaonline.unitn.it/dol/mod/url/view.php?id=1435492"                                          # change on competition day
 GROUP_NAME = "ALL-IN"
 
 # local evaluation mode settings
