@@ -35,7 +35,7 @@ BATCH_SIZE   = 8
 FACE_CROP    = True      # True for competition (~3000 images), False for large datasets
 SAVE_EMBEDDINGS = True   # save embeddings to avoid recomputing
 LOAD_EMBEDDINGS = False  # set True to load saved embeddings instead of recomputing
-GROUP_NAME   = "ALL-IN-dinov2"
+GROUP_NAME   = "ALL-IN"
 
 # Update this path on competition day:
 DATA_FOLDER  = "/home/disi/data/lfw_split"
