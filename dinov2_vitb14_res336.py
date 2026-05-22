@@ -32,13 +32,13 @@ from facenet_pytorch import MTCNN
 MODEL_NAME   = "dinov2_vitb14"
 RESOLUTION   = 336
 BATCH_SIZE   = 8
-FACE_CROP    = True      # True for competition (~3000 images), False for large datasets
+FACE_CROP    = False      # True for competition (~3000 images), False for large datasets
 SAVE_EMBEDDINGS = True   # save embeddings to avoid recomputing
 LOAD_EMBEDDINGS = False  # set True to load saved embeddings instead of recomputing
 GROUP_NAME   = "ALL-IN"
 
 # Update this path on competition day:
-DATA_FOLDER  = "/home/disi/data/lfw_split"
+DATA_FOLDER  = "/home/disi/data/competition_test"
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Device setup ──────────────────────────────────────────────────────────────
@@ -229,7 +229,7 @@ with open(result_filename, "w") as f:
     f.write(f"Model: {MODEL_NAME}\n")
     f.write(f"Resolution: {RESOLUTION}x{RESOLUTION}\n")
     f.write(f"Face detection: {FACE_CROP}\n")
-    f.write(f"Fine-tuned: {os.path.exists(checkpoint_path)}\n")
+    f.write(f"Fine-tuned: False\n")
     f.write(f"Dataset: {DATA_FOLDER}\n")
     f.write(f"--- Local Evaluation (VGGFace2 format) ---\n")
     f.write(f"Top-1:  {top1/total:.2%}\n")
@@ -239,10 +239,10 @@ with open(result_filename, "w") as f:
 print(f"Results saved to {result_filename}")
 
 # ── Submit (uncomment on competition day) ─────────────────────────────────────
- submit_and_log(
+submit_and_log(
     res_dict=results,
     model_name="DINOv2_pretrained",  # change per script
     group_name=GROUP_NAME,
-    url="http://competition-server-url/retrieval/",
+    url="http://videosim.disi.unitn.it:3001/retrieval/",
     log_file="/home/disi/logs/submission_log.txt"
 )

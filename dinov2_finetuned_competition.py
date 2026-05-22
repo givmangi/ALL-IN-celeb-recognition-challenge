@@ -38,7 +38,7 @@ LOAD_EMBEDDINGS = False  # set True to load saved embeddings instead of recomput
 GROUP_NAME   = "ALL-IN"
 
 # Update this path on competition day:
-DATA_FOLDER  = "/home/disi/data/vggface2_train_split/test"
+DATA_FOLDER  = "/home/disi/data/competition_test"
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Device setup ──────────────────────────────────────────────────────────────
@@ -251,6 +251,6 @@ submit_and_log(
     res_dict=results,
     model_name="DINOv2_finetuned_competition",  # change per script
     group_name=GROUP_NAME,
-    url="http://competition-server-url/retrieval/",
+    url="http://videosim.disi.unitn.it:3001/retrieval/",
     log_file="/home/disi/logs/submission_log.txt"
 )
