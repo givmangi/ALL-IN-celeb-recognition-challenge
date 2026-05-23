@@ -34,7 +34,7 @@ SEED          = 1
 NUM_TRIPLETS  = 5000
 
 # !! UPDATE THIS ON COMPETITION DAY !!
-DATA_FOLDER   = "/path/to/competition/training/data"
+DATA_FOLDER   = "/home/disi/data/competition_train/train"
 CHECKPOINT_IN  = "checkpoints/best_model_split_v3_epoch3.pth"   # starting point
 CHECKPOINT_OUT = "checkpoints/best_model_competition.pth"  # output
 # ─────────────────────────────────────────────────────────────────────────────

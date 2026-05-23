@@ -34,7 +34,7 @@ from facenet_pytorch import MTCNN
 # ── Configuration ─────────────────────────────────────────────────────────────
 MODEL_NAME   = "dinov2_vitb14"
 RESOLUTION   = 224
-BATCH_SIZE   = 16        # triplets per batch
+BATCH_SIZE   = 8        # triplets per batch
 EPOCHS       = 15
 LR           = 1e-5      # small learning rate for fine-tuning
 MARGIN       = 0.3       # triplet loss margin
@@ -42,7 +42,7 @@ SEED         = 1         # for reproducible train/val split
 NUM_TRIPLETS  = 5000     # triplets per epoch
 EMBEDDING_DIM = 768      # ViT-B/14 output dimension
 
-DATA_FOLDER  = "/home/disi/data/vggface2_raw/1"  # we'll create this split
+DATA_FOLDER  = "/home/disi/data/vggface2_train_split/train"  # we'll create this split
 SAVE_PATH    = "checkpoints"                       # where to save best model
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -210,7 +210,7 @@ print(f"{len(dataloader)} batches per epoch")
 
 # ── Validation dataset ────────────────────────────────────────────────────────
 print("Loading validation dataset...")
-val_folder = os.path.join(DATA_FOLDER.replace("/1", ""), "../vggface2_train_split/val")
+val_folder = "/home/disi/data/vggface2_train_split/val"
 
 # Build val identity -> image paths dictionary
 val_identity_to_images = {}
