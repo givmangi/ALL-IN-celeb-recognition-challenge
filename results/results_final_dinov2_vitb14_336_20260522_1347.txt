@@ -1,0 +1,10 @@
+Model: dinov2_vitb14
+Resolution: 336x336
+Face detection: False
+Fine-tuned: False
+Dataset: /home/disi/data/competition_test
+--- Local Evaluation (VGGFace2 format) ---
+Top-1:  0.00%
+Top-5:  0.00%
+Top-10: 0.00%
+--- Server Score (competition) ---
