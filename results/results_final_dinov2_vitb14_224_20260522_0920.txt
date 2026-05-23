@@ -1,3 +1,0 @@
-Model: dinov2_vitb14
-Resolution: 224x224
-Face detection: False
