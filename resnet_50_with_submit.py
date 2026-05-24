@@ -20,8 +20,8 @@ from torch.utils.data import Dataset, DataLoader
 MODE = "competition"  # "local" for LFW testing, "competition" for actual submission
 
 # competition mode settings
-QUERY_FOLDER   = "/home/disi/test/query"
-GALLERY_FOLDER = "/home/disi/test/gallery"
+QUERY_FOLDER   = "/home/disi/ALL-IN-celeb-recognition-challenge/test/query"
+GALLERY_FOLDER = "/home/disi/ALL-IN-celeb-recognition-challenge/test/gallery"
 SUBMIT_URL     = "http://videosim.disi.unitn.it:3001/retrieval/"        # paste the real submission URL here
 GROUP_NAME     = "ALL-IN"
 MODEL_TAG      = "ResNet50_ImageNet_baseline"   # shown in submission log
