@@ -1,0 +1,8 @@
+
+--- Mock Evaluation Results ---
+ Model used: ArcMarginProduct with LFW dataset
+Trained on 258 pictures of 7 identities
+Epochs Trained: 120
+Top-1 Accuracy:  52.33% (Target: 600 pts)
+Top-5 Accuracy:  83.72% (Target: 300 pts)
+Top-10 Accuracy: 89.92% (Target: 100 pts)

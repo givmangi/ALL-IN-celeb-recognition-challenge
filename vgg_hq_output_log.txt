@@ -1,0 +1,9 @@
+
+--- VGGFace2-HQ Evaluation Results ---
+Model used: Custom CNN + ArcFace
+Test Set Size: 6792 queries
+Epochs Trained: 10
+----------------------------------------
+Top-1 Accuracy:  59.16% (Target: 600 pts)
+Top-5 Accuracy:  74.32% (Target: 300 pts)
+Top-10 Accuracy: 79.77% (Target: 100 pts)
