@@ -1,0 +1,7 @@
+torch
+torchvision
+pillow
+requests
+timm
+facenet-pytorch
+huggingface_hub

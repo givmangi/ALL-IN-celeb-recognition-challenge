@@ -1,0 +1,14 @@
+ML_comp_env/
+results/*.pt
+query_embeddings.pt
+gallery_embeddings.pt
+*.log
+checkpoints/
+!checkpoints/.gitkeep
+
+ML_comp_env/
+results/*.pt
+query_embeddings.pt
+gallery_embeddings.pt
+*.log
+checkpoints/

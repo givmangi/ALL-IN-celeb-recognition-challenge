@@ -1,0 +1,8 @@
+Model: dinov2_vitb14
+Resolution: 336x336
+Batch size: 16
+Face detection: False
+Dataset: /home/disi/data/vggface2_split
+Top-1:  32.44%
+Top-5:  46.58%
+Top-10: 53.59%
