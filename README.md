@@ -16,7 +16,7 @@ that folder and follow its README — no cross-folder dependencies.
 | Folder | Approach | Best Score |
 |---|---|---|
 | [`DINOv2/`](DINOv2/) | DINOv2 ViT-B/14, two-stage fine-tuning (VGGFace2 → competition) | 272.67 |
-| [`CLIP/`](CLIP%ViT-L_14/) | CLIP ViT-L/14, direct domain adaptation (competition data only, 2 epochs) | 734.00 |
+| [`CLIP ViT-L_14/`](CLIP%ViT-L_14/) | CLIP ViT-L/14, direct domain adaptation (competition data only, 2 epochs) | 734.00 |
 | `<folder>/` | _add your model here_ | |
 
 ## Report
