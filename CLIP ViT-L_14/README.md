@@ -88,6 +88,7 @@ This preprocesses images (224x224 center crop, standard CLIP normalization), com
  |
 | `submission_log.txt` | Automatically generated log of all server submissions and HTTP responses.
  |
+ 
 ---
 
 ## 5. Key Findings
