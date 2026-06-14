@@ -1,22 +1,22 @@
 """
-DINOv2 ViT-B/14 - Final Competition Script (336x336 resolution)
-================================================================
-Author: Kristine
+DINOv2 Experiment Script
+=========================
+Author: Kristine Paegle
 Branch: kristine-dinov2
 
-Model: DINOv2 ViT-B/14 — self-supervised vision transformer by Meta AI.
-Used as a pretrained feature extractor, optionally fine-tuned with triplet loss.
+Configurable script for testing different DINOv2 configurations.
+Images are loaded on-the-fly during batching to avoid memory issues.
 
-Key features:
-- On-the-fly image loading (no RAM overload)
+All experiments include:
 - EXIF rotation fix
-- Optional MTCNN face detection cropping (recommended for small datasets)
-- Embedding saving/loading to avoid recomputation
-- Local evaluation + competition server submission
+- L2 normalized cosine similarity retrieval
+- Local evaluation (no server needed)
+- Face detection available but disabled for large datasets
 
-Results (no fine-tuning, no face crop):
-- LFW:         Top-1: 18.63%, Top-5: 27.62%, Top-10: 31.55% (336)
-- VGGFace2-HQ: Top-1: 32.44%, Top-5: 46.58%, Top-10: 53.59% (336)
+Used to compare configurations (model size, resolution, face cropping)
+on LFW and VGGFace2-HQ before committing to a setup for fine-tuning and
+the competition pipeline. For results and conclusions from these runs,
+see DINOv2_experiment_log.md.
 """
 
 import os
@@ -31,14 +31,10 @@ from facenet_pytorch import MTCNN
 # ── Configuration ─────────────────────────────────────────────────────────────
 MODEL_NAME   = "dinov2_vitb14"
 RESOLUTION   = 224
-BATCH_SIZE   = 8
-FACE_CROP    = False      # True for competition (~3000 images), False for large datasets
-SAVE_EMBEDDINGS = True   # save embeddings to avoid recomputing
-LOAD_EMBEDDINGS = False  # set True to load saved embeddings instead of recomputing
-GROUP_NAME   = "ALL-IN"
-
-# Update this path on competition day:
-DATA_FOLDER  = "/home/disi/data/competition_test"
+BATCH_SIZE   = 16
+DATA_FOLDER  = "/home/disi/data/vggface2_train_split/test"
+GROUP_NAME   = "ALL-IN-dinov2"
+FACE_CROP    = False    # set True to enable face detection (slow on large datasets)
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Device setup ──────────────────────────────────────────────────────────────
@@ -47,62 +43,28 @@ if torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 print(f"Using device: {device}")
-print(f"Model: {MODEL_NAME} | Resolution: {RESOLUTION} | Face crop: {FACE_CROP}")
+print(f"Model: {MODEL_NAME} | Resolution: {RESOLUTION}x{RESOLUTION} | Batch: {BATCH_SIZE} | Face crop: {FACE_CROP}")
 
-def submit_and_log(res_dict, model_name, group_name="ALL-IN", url="", log_file="/home/disi/logs/submission_log.txt"):
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] Submitting '{model_name}' as '{group_name}'...")
-    
-    payload = json.dumps({
-        "groupname": group_name,
-        "images": res_dict      # ← keeping 'images' as per professor's baseline
-    })
-    
-    server_response_text = ""
+# ── Submit function ───────────────────────────────────────────────────────────
+def submit(results, groupname, url):
+    res = {}
+    res['groupname'] = groupname
+    res['images'] = results
+    res = json.dumps(res)
+    response = requests.post(url, res)
     try:
-        response = requests.post(url, payload, timeout=30)
-        response.raise_for_status()
-        server_response_text = response.text.strip()
-        print(f"\nSUCCESS! Server responded: {server_response_text}\n")
-    except requests.exceptions.HTTPError as http_err:
-        server_response_text = f"HTTP Error: {http_err} - {response.text}"
-        print(f"\nERROR: {server_response_text}\n")
-    except Exception as err:
-        server_response_text = f"Connection FAILED: {err}"
-        print(f"\nERROR: {server_response_text}\n")
-
-    log_entry = (
-        f"Time:\t {timestamp}\n"
-        f"Group:\t {group_name}\n"
-        f"Model:\t {model_name}\n"
-        f"Result:\t {server_response_text}\n"
-        f"{'-'*60}\n"
-    )
-    try:
-        os.makedirs(os.path.dirname(log_file), exist_ok=True)
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(log_entry)
-        print(f"Log saved to: {log_file}")
-    except Exception as e:
-        print(f"Warning: Could not write log. Error: {e}")
+        result = json.loads(response.text)
+        print(f"accuracy is {result['accuracy']}")
+    except json.JSONDecodeError:
+        print(f"ERROR: {response.text}")
 
 # ── Load DINOv2 ───────────────────────────────────────────────────────────────
 print(f"Loading {MODEL_NAME}...")
 model = torch.hub.load('facebookresearch/dinov2', MODEL_NAME)
-
-# Load fine-tuned weights if available
-checkpoint_path = "checkpoints/best_model_competition.pth"
-if os.path.exists(checkpoint_path):
-    print(f"Loading fine-tuned weights from {checkpoint_path}...")
-    model.load_state_dict(torch.load(checkpoint_path, map_location=device))
-    print("Fine-tuned weights loaded!")
-else:
-    print("No fine-tuned weights found, using pretrained model.")
-
 model = model.to(device)
 model.eval()
 
-# ── Load MTCNN face detector ──────────────────────────────────────────────────
+# ── Load MTCNN face detector (only if needed) ─────────────────────────────────
 if FACE_CROP:
     print("Loading face detector...")
     mtcnn = MTCNN(
@@ -121,23 +83,23 @@ preprocess = T.Compose([
                 std=[0.229, 0.224, 0.225]),
 ])
 
-# ── Face detection ────────────────────────────────────────────────────────────
+# ── Face detection (optional) ─────────────────────────────────────────────────
 def detect_and_crop_face(img):
     face_tensor = mtcnn(img)
     if face_tensor is not None:
         return T.ToPILImage()(face_tensor.cpu().clamp(0, 1))
     return img
 
-# ── Load single image ─────────────────────────────────────────────────────────
+# ── Load single image from disk ───────────────────────────────────────────────
 def load_image(path):
     with Image.open(path) as img:
         img = img.convert("RGB")
-        img = ImageOps.exif_transpose(img)
+        img = ImageOps.exif_transpose(img)       # rotation fix always on
         if FACE_CROP:
-            img = detect_and_crop_face(img)
+            img = detect_and_crop_face(img)      # face crop optional
         return img.copy()
 
-# ── Extract features on the fly ───────────────────────────────────────────────
+# ── Extract features from file paths (on the fly, no RAM overload) ────────────
 def extract_features(file_paths, batch_size=BATCH_SIZE):
     features = []
     for i in range(0, len(file_paths), batch_size):
@@ -146,9 +108,9 @@ def extract_features(file_paths, batch_size=BATCH_SIZE):
         inputs = torch.stack([preprocess(img) for img in imgs]).to(device)
         with torch.no_grad():
             feats = model(inputs)
-            features.append(feats.cpu())
-        if (i // batch_size) % 50 == 0:
-            print(f"  {min(i+batch_size, len(file_paths))}/{len(file_paths)} images processed...")
+            features.append(feats.cpu())  # move to CPU to free GPU memory
+        if (i // batch_size) % 100 == 0:
+            print(f"  {i}/{len(file_paths)} images processed...")
     return torch.cat(features, dim=0)
 
 # ── Collect file paths ────────────────────────────────────────────────────────
@@ -158,12 +120,12 @@ gallery_folder = os.path.join(DATA_FOLDER, "gallery")
 query_paths, query_filenames     = [], []
 gallery_paths, gallery_filenames = [], []
 
-for filename in sorted(os.listdir(query_folder)):
+for filename in os.listdir(query_folder):
     if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         query_paths.append(os.path.join(query_folder, filename))
         query_filenames.append(filename)
 
-for filename in sorted(os.listdir(gallery_folder)):
+for filename in os.listdir(gallery_folder):
     if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         gallery_paths.append(os.path.join(gallery_folder, filename))
         gallery_filenames.append(filename)
@@ -172,10 +134,16 @@ print(f"Query images: {len(query_paths)}")
 print(f"Gallery images: {len(gallery_paths)}")
 
 # ── Extract or load features ──────────────────────────────────────────────────
-if LOAD_EMBEDDINGS and os.path.exists("query_embeddings.pt"):
-    print("Loading saved embeddings...")
-    query_features   = torch.load("query_embeddings.pt")
-    gallery_features = torch.load("gallery_embeddings.pt")
+embedding_file = f"results/embeddings_{MODEL_NAME}_{RESOLUTION}_{os.path.basename(DATA_FOLDER)}.pt"
+os.makedirs("results", exist_ok=True)
+
+if os.path.exists(embedding_file):
+    print(f"Loading saved embeddings from {embedding_file}...")
+    saved = torch.load(embedding_file)
+    query_features    = saved['query_features']
+    gallery_features  = saved['gallery_features']
+    query_filenames   = saved['query_filenames']
+    gallery_filenames = saved['gallery_filenames']
     print("Embeddings loaded!")
 else:
     print("Processing query images...")
@@ -185,10 +153,13 @@ else:
     gallery_features = extract_features(gallery_paths)
     torch.cuda.empty_cache()
 
-    if SAVE_EMBEDDINGS:
-        torch.save(query_features,   "query_embeddings.pt")
-        torch.save(gallery_features, "gallery_embeddings.pt")
-        print("Embeddings saved!")
+    torch.save({
+        'query_features':    query_features,
+        'gallery_features':  gallery_features,
+        'query_filenames':   query_filenames,
+        'gallery_filenames': gallery_filenames
+    }, embedding_file)
+    print(f"Embeddings saved to {embedding_file}")
 
 # ── Normalize ─────────────────────────────────────────────────────────────────
 print("Normalizing features...")
@@ -217,6 +188,7 @@ top1, top5, top10, total = 0, 0, 0, 0
 for i, query_filename in enumerate(query_filenames):
     query_identity = query_filename.split("__")[0]
     retrieved = [gallery_filenames[idx].split("__")[0] for idx in top_k_indices[i]]
+
     total += 1
     if query_identity == retrieved[0]:
         top1 += 1
@@ -231,26 +203,22 @@ print(f"Top-10 accuracy: {top10 / total:.2%}")
 
 # ── Save results ──────────────────────────────────────────────────────────────
 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+result_filename = f"results/results_{MODEL_NAME}_{RESOLUTION}_{timestamp}.txt"
 os.makedirs("results", exist_ok=True)
-result_filename = f"results/results_final_{MODEL_NAME}_{RESOLUTION}_{timestamp}.txt"
 with open(result_filename, "w") as f:
     f.write(f"Model: {MODEL_NAME}\n")
     f.write(f"Resolution: {RESOLUTION}x{RESOLUTION}\n")
+    f.write(f"Batch size: {BATCH_SIZE}\n")
     f.write(f"Face detection: {FACE_CROP}\n")
-    f.write(f"Fine-tuned: {os.path.exists(checkpoint_path)}\n")
     f.write(f"Dataset: {DATA_FOLDER}\n")
-    f.write(f"--- Local Evaluation (VGGFace2 format) ---\n")
     f.write(f"Top-1:  {top1/total:.2%}\n")
     f.write(f"Top-5:  {top5/total:.2%}\n")
     f.write(f"Top-10: {top10/total:.2%}\n")
-    f.write(f"--- Server Score (competition) ---\n")
 print(f"Results saved to {result_filename}")
 
 # ── Submit (uncomment on competition day) ─────────────────────────────────────
-submit_and_log(
-    res_dict=results,
-    model_name="DINOv2_finetuned_competition",  # change per script
-    group_name=GROUP_NAME,
-    url="http://videosim.disi.unitn.it:3001/retrieval/",
-    log_file="/home/disi/logs/submission_log.txt"
-)
+# submit(
+#     results=results,
+#     groupname=GROUP_NAME,
+#     url="http://competition-server-url/retrieval/"
+# )

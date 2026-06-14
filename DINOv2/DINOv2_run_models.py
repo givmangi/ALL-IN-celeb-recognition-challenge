@@ -1,22 +1,27 @@
 """
-DINOv2 ViT-B/14 - Final Competition Script (336x336 resolution)
-================================================================
-Author: Kristine
+DINOv2 ViT-B/14 - Run / Evaluate / Submit
+==========================================
+Author: Kristine Paegle
 Branch: kristine-dinov2
 
+Single configurable script that replaces:
+  - dinov2_vitb14_res336.py        (pretrained, 336)
+  - dinov2_finetuned_split.py      (VGGFace2 80% split checkpoint)
+  - dinov2_finetuned_100pct.py     (VGGFace2 100% checkpoint)
+  - dinov2_finetuned_competition.py(competition fine-tuned checkpoint)
+
 Model: DINOv2 ViT-B/14 — self-supervised vision transformer by Meta AI.
-Used as a pretrained feature extractor, optionally fine-tuned with triplet loss.
+Used as a feature extractor, optionally fine-tuned with triplet loss.
 
 Key features:
 - On-the-fly image loading (no RAM overload)
 - EXIF rotation fix
-- Optional MTCNN face detection cropping (recommended for small datasets)
+- Optional MTCNN face detection cropping (hurts performance, kept for reference)
 - Embedding saving/loading to avoid recomputation
-- Local evaluation + competition server submission
+- Local evaluation (Top-1/5/10) + competition server submission
 
-Results (no fine-tuning, no face crop):
-- LFW:         Top-1: 18.63%, Top-5: 27.62%, Top-10: 31.55% (336)
-- VGGFace2-HQ: Top-1: 32.44%, Top-5: 46.58%, Top-10: 53.59% (336)
+To run a different model, just change CHECKPOINT and SUBMISSION_NAME below.
+Everything else stays the same.
 """
 
 import os
@@ -29,16 +34,32 @@ import torchvision.transforms as T
 from facenet_pytorch import MTCNN
 
 # ── Configuration ─────────────────────────────────────────────────────────────
+# Pick which checkpoint to evaluate. Set to None for the pretrained baseline.
+#
+#   None                                          -> pretrained baseline (no fine-tuning)
+#   "checkpoints/best_model_split_v3_epoch3.pth"  -> VGGFace2 80% split, fine-tuned
+#   "checkpoints/best_model_100pct.pth"           -> VGGFace2 100%, fine-tuned
+#   "checkpoints/best_model_competition.pth"      -> VGGFace2 100% + competition (BEST: 272.67)
+#   "checkpoints/best_model_pretrained_competition.pth" -> pretrained + competition only
+CHECKPOINT = "checkpoints/best_model_competition.pth"
+
+# Name used when logging the submission (purely descriptive).
+SUBMISSION_NAME="DINOv2_finetuned_competition",  # change per script
+
 MODEL_NAME   = "dinov2_vitb14"
-RESOLUTION   = 224
+RESOLUTION   = 224       # use 336 for the pretrained-336 experiment
 BATCH_SIZE   = 8
-FACE_CROP    = False      # True for competition (~3000 images), False for large datasets
+FACE_CROP    = False     # consistently hurts performance, kept for reference only
 SAVE_EMBEDDINGS = True   # save embeddings to avoid recomputing
 LOAD_EMBEDDINGS = False  # set True to load saved embeddings instead of recomputing
 GROUP_NAME   = "ALL-IN"
 
+SUBMIT_RESULTS = True      # set False to skip server submission (local eval only)
+
 # Update this path on competition day:
 DATA_FOLDER  = "/home/disi/data/competition_test"
+SUBMIT_URL   = "http://videosim.disi.unitn.it:3001/retrieval/"
+LOG_FILE     = "/home/disi/logs/submission_log.txt"
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Device setup ──────────────────────────────────────────────────────────────
@@ -48,8 +69,8 @@ else:
     device = torch.device("cpu")
 print(f"Using device: {device}")
 print(f"Model: {MODEL_NAME} | Resolution: {RESOLUTION} | Face crop: {FACE_CROP}")
+print(f"Checkpoint: {CHECKPOINT if CHECKPOINT else '(pretrained, no fine-tuning)'}")
 
-# ── Submit function ───────────────────────────────────────────────────────────
 def submit_and_log(res_dict, model_name, group_name="ALL-IN", url="", log_file="/home/disi/logs/submission_log.txt"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] Submitting '{model_name}' as '{group_name}'...")
@@ -91,14 +112,14 @@ def submit_and_log(res_dict, model_name, group_name="ALL-IN", url="", log_file="
 print(f"Loading {MODEL_NAME}...")
 model = torch.hub.load('facebookresearch/dinov2', MODEL_NAME)
 
-# Load fine-tuned weights if available
-checkpoint_path = "checkpoints/best_model_split_v3_epoch3.pth"
-if os.path.exists(checkpoint_path):
-    print(f"Loading fine-tuned weights from {checkpoint_path}...")
-    model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+if CHECKPOINT and os.path.exists(CHECKPOINT):
+    print(f"Loading fine-tuned weights from {CHECKPOINT}...")
+    model.load_state_dict(torch.load(CHECKPOINT, map_location=device))
     print("Fine-tuned weights loaded!")
+elif CHECKPOINT:
+    print(f"WARNING: checkpoint '{CHECKPOINT}' not found — using pretrained model.")
 else:
-    print("No fine-tuned weights found, using pretrained model.")
+    print("No checkpoint specified — using pretrained model.")
 
 model = model.to(device)
 model.eval()
@@ -238,7 +259,7 @@ with open(result_filename, "w") as f:
     f.write(f"Model: {MODEL_NAME}\n")
     f.write(f"Resolution: {RESOLUTION}x{RESOLUTION}\n")
     f.write(f"Face detection: {FACE_CROP}\n")
-    f.write(f"Fine-tuned: {os.path.exists(checkpoint_path)}\n")
+    f.write(f"Fine-tuned: {os.path.exists(CHECKPOINT) if CHECKPOINT else False}\n")
     f.write(f"Dataset: {DATA_FOLDER}\n")
     f.write(f"--- Local Evaluation (VGGFace2 format) ---\n")
     f.write(f"Top-1:  {top1/total:.2%}\n")
@@ -247,11 +268,14 @@ with open(result_filename, "w") as f:
     f.write(f"--- Server Score (competition) ---\n")
 print(f"Results saved to {result_filename}")
 
- # ── Submit (uncomment on competition day) ─────────────────────────────────────
-submit_and_log(
-    res_dict=results,
-    model_name="DINOv2_finetuned_split",  # change per script
-    group_name=GROUP_NAME,
-    url="http://videosim.disi.unitn.it:3001/retrieval/",
-    log_file="/home/disi/logs/submission_log.txt"
-)
+# ── Submit (uncomment on competition day) ─────────────────────────────────────
+if SUBMIT_RESULTS:
+    submit_and_log(
+        res_dict=results,
+        model_name=SUBMISSION_NAME,
+        group_name=GROUP_NAME,
+        url=SUBMIT_URL,
+        log_file=LOG_FILE
+    )
+else:
+    print("SUBMIT_RESULTS = False, skipping server submission.")

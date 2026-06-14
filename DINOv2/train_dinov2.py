@@ -1,7 +1,7 @@
 """
 DINOv2 Fine-tuning with Triplet Loss
 ======================================
-Author: Kristine
+Author: Kristine Paegle
 Branch: kristine-dinov2
 
 Fine-tunes DINOv2 ViT-B/14 using triplet loss on VGGFace2-HQ.
@@ -16,7 +16,7 @@ Training strategy:
 
 Best base configuration from experiments:
 - Model: DINOv2 ViT-B/14
-- Resolution: 336x336
+- Resolution: 224x224
 - Preprocessing: MTCNN face crop + EXIF rotation fix
 """
 

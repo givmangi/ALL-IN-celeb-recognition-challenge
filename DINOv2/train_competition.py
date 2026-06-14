@@ -1,7 +1,7 @@
 """
 DINOv2 Competition Day Fine-tuning
 ====================================
-Author: Kristine
+Author: Kristine Paegle
 Branch: kristine-dinov2
 
 Fine-tunes the pre-trained split model on competition training data.

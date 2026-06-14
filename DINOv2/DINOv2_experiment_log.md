@@ -1,4 +1,4 @@
-# Kristine's DINOv2 Experiments
+# DINOv2 Experiments
 
 ## Models Tested
 DINOv2 is a self-supervised vision transformer by Meta AI. Two variants tested:
