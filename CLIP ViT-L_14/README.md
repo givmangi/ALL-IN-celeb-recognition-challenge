@@ -82,12 +82,9 @@ This preprocesses images (224x224 center crop, standard CLIP normalization), com
 
 | File | Purpose |
 | --- | --- |
-| `00train.py` | Domain adaptation script: fine-tunes the raw ViT-L/14 model on competition triplets.
- |
-| `python 00runPREPARED.py` | Inference script: extracts features, builds KNN index, evaluates local splits, and submits to the competition server.
- |
-| `submission_log.txt` | Automatically generated log of all server submissions and HTTP responses.
- |
+| `00train.py` | Domain adaptation script: fine-tunes the raw ViT-L/14 model on competition triplets.|
+| `00runPREPARED.py` | Inference script: extracts features, builds KNN index, evaluates local splits, and submits to the competition server.|
+| `submission_log.txt` | Automatically generated log of all server submissions and HTTP responses.|
  
 ---
 
