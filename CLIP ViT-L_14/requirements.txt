@@ -1,0 +1,7 @@
+torch
+torchvision
+numpy
+Pillow
+scikit-learn
+requests
+git+https://github.com/openai/CLIP.git
