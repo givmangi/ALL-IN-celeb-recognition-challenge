@@ -16,8 +16,6 @@ Given a real photograph of a celebrity (query), retrieve the 10 most similar AI-
 |---|---|
 | `gfpgan_augment.py` | **Main augmentation script.** Applies GFPGAN face restoration to a folder of images. Used on competition day to bring competition data closer to our training distribution. |
 | `test_gfpgan.py` | Sanity-check script for `gfpgan_augment.py`. Verifies that GFPGAN is installed correctly, the model weights load, and the augmentation pipeline produces valid output on real face images. |
-| `resnet_50.py` | Pretrained ResNet-50 baseline. Extracts embeddings from images, runs cosine-similarity retrieval, evaluates Top-1/5/10 locally on an LFW-based split. Used as a reference baseline. |
-| `siglip2_retrieval.py` | SigLIP2 baseline with optional MTCNN face cropping and query expansion. Used as a zero-shot alternative to the fine-tuned CLIP pipeline. |
 | `requirements.txt` | Python dependencies. |
 
 ---
@@ -174,27 +172,6 @@ If timing is very tight, consider augmenting only the gallery (Strategy 1) — i
 ### `test_gfpgan.py`
 
 Pre-competition sanity check for the GFPGAN pipeline. Tests model loading, single-image processing, batch file I/O, and graceful handling of corrupt files. Use this once after setting up GFPGAN to confirm everything works. See the `gfpgan_augment.py` setup section above for usage.
-
-### `resnet_50.py`
-
-Loads pretrained ResNet-50 (ImageNet), removes the classification head, and uses the resulting 2048-d feature vectors as image embeddings. Includes a data preparation step that downloads LFW and splits it into a query/gallery format mimicking the competition. Reports Top-1/5/10 locally.
-
-Used as the simplest possible baseline — ResNet-50 was not trained on faces specifically, so its performance establishes a floor that any face-aware model should clearly exceed.
-
-```bash
-python resnet_50.py
-```
-
-### `siglip2_retrieval.py`
-
-Loads pretrained SigLIP2 from HuggingFace, optionally applies MTCNN face cropping as preprocessing, and runs the retrieval pipeline. Includes a query-expansion post-processing option that averages each query embedding with its top-k nearest gallery neighbors before re-ranking.
-
-Useful as a strong zero-shot baseline. SigLIP2 was trained on a very diverse image-text corpus including illustrations and generated images, so it may handle the real-vs-synthetic gap better than face-recognition-specific models out of the box.
-
-```bash
-python siglip2_retrieval.py
-```
-
 ---
 
 ## Troubleshooting
