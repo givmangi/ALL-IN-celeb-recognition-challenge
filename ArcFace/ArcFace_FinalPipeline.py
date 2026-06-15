@@ -437,6 +437,5 @@ def run_pipeline():
 
     run_competition_only(device, batch_size=64, epoch_checkpoints=(10, 20, 30, 40))
 
-
 if __name__ == "__main__":
     run_pipeline()
