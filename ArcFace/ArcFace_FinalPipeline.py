@@ -8,10 +8,10 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Dataset, random_split
 from PIL import Image
 
-VGGFACE2_DIR   = 'C:\\Users\\mangi\\OneDrive\\Desktop\\sku\\ml_challenge\\ALL-IN-celeb-recognition-challenge\\dataset\\VGGface2_hQ\\full_dataset'
-COMP_TRAIN_DIR = 'C:\\Users\\mangi\\OneDrive\\Desktop\\sku\\ml_challenge\\ALL-IN-celeb-recognition-challenge\\comp_data\\train'
-COMP_QUERY_DIR = 'C:\\Users\\mangi\\OneDrive\\Desktop\\sku\\ml_challenge\\ALL-IN-celeb-recognition-challenge\\comp_data\\query'
-COMP_GALLERY_DIR = 'C:\\Users\\mangi\\OneDrive\\Desktop\\sku\\ml_challenge\\ALL-IN-celeb-recognition-challenge\\comp_data\\gallery'
+VGGFACE2_DIR   = os.environ.get('FULL_DATASET_PATH', 'VggFace2_None_norm_512_true_bygfpgan')
+COMP_TRAIN_DIR = os.environ.get('COMP_TRAIN_DIR', 'train')
+COMP_QUERY_DIR = os.environ.get('COMP_QUERY_DIR', 'query')
+COMP_GALLERY_DIR = os.environ.get('COMP_GALLERY_DIR', 'gallery')
 
 TRANSFORM = transforms.Compose([
     transforms.Resize((112, 112)),
@@ -34,7 +34,7 @@ def get_vggface_dataloaders(data_dir=VGGFACE2_DIR, batch_size=64, split_ratio=(0
     val_size   = int(split_ratio[1] * total)
     test_size  = total - train_size - val_size
 
-    generator = torch.Generator().manual_seed(1)
+    generator = torch.Generator().manual_seed(388404)  # fixed seed for reproducibility
     train_set, val_set, test_set = random_split(
         dataset, [train_size, val_size, test_size], generator=generator
     )
