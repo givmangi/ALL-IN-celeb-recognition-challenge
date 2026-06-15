@@ -15,9 +15,10 @@ that folder and follow its README — no cross-folder dependencies.
 
 | Folder | Approach | Best Score |
 |---|---|---|
+| [`ResNet-50/`](ResNet-50/) | ResNet-50 Baseline with Random Init | 80.67 |
 | [`DINOv2/`](DINOv2/) | DINOv2 ViT-B/14, two-stage fine-tuning (VGGFace2 → competition) | 272.67 |
+| [`ArcFace/`](ArcFace/) | Custom CNN Backbone + ArcMargin Product Classification Head (Competition only, 30 epochs) | 278.00 |
 | [`CLIP/`](CLIP%ViT-L_14/) | CLIP ViT-L/14, direct domain adaptation (competition data only, 2 epochs) | 734.00 |
-| `<folder>/` | _add your model here_ | |
 
 ## Report
 
