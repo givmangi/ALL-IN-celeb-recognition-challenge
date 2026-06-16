@@ -16,6 +16,16 @@ Full experiment log, ablations, and findings: see [`DINOv2_experiment_log.md`](D
 > warning — it won't crash, but you won't get fine-tuned results without
 > access to the VM checkpoints.
 
+> **Note on missing competition-day logs:** the VM was reset after the
+> competition (GPU driver crash from running multiple processes
+> simultaneously), which wiped most local result files and submission log
+> entries from competition day itself. `submission_log.txt` and `results/`
+> in this repo only contain what survived — mainly the LFW and VGGFace2-HQ
+> preliminary runs (Table 1) plus a partial competition entry. The full
+> competition ablation numbers in Table 2 of the report (123.67 through
+> 272.67) were recorded at submission time but their underlying local
+> result files and most submission log entries are no longer recoverable.
+
 ---
 
 ## 1. Environment Setup

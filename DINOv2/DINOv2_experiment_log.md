@@ -57,6 +57,15 @@ DINOv2 is a self-supervised vision transformer by Meta AI. Two variants tested:
 | DINOv2 split → competition | VGGFace2 80% + Competition | 3 | 271.67 | 19.33% | 37.33% | 43.67% |
 | **DINOv2 100pct → competition** | **VGGFace2 100% + Competition** | **3** | **272.67** | **18.67%** | **38.00%** | **46.67%** |
 
+> **Note:** the VM was reset after the competition (GPU driver crash from
+> running multiple processes simultaneously), which wiped most local result
+> files and submission log entries from competition day. The numbers above
+> were recorded at submission time, but the underlying local result files
+> and most `submission_log.txt` entries for these specific runs are no
+> longer recoverable. Only the LFW/VGGFace2-HQ preliminary runs (tables
+> above) and a partial competition-day entry survived in `results/` and
+> `submission_log.txt`.
+
 ## Key Findings
 
 **Fine-tuning with triplet loss is the biggest improvement** — on VGGFace2-HQ,
