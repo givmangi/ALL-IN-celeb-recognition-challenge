@@ -22,4 +22,4 @@ that folder and follow its README — no cross-folder dependencies.
 
 ## Report
 
-_Link to the final report will go here once merged._
+The full written report (methodology, results, and discussion across all models) was submitted separately as the course deliverable and is not included in this repository.
